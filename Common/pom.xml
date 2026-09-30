@@ -327,20 +327,6 @@
             <version>LATEST</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>io.github.InsiderAnh.xPlayerKits</groupId>
-            <artifactId>xPlayerKits</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/xPlayerKits.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>pl.norbit.treecuter</groupId>
-            <artifactId>treecuter</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/TreeCuter.jar</systemPath>
-        </dependency>
     </dependencies>
 
 </project>
