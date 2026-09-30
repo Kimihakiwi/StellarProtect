@@ -86,15 +86,6 @@ public class RestoreManager {
                 }
 
                 processedCount++;
-
-                if (processedCount % MAX_PER_TICK == 0) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
             }
         }
     }
@@ -108,15 +99,6 @@ public class RestoreManager {
                 restore(logEntry, sender, verbose);
 
                 processedCount++;
-
-                if (processedCount % MAX_PER_TICK == 0) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
             }
         }
     }
@@ -137,9 +119,9 @@ public class RestoreManager {
             }
 
             try {
-                boolean isPlace = blockLogEntry.getActionType() == ActionType.BLOCK_PLACE.getId() || blockLogEntry.getActionType() == ActionType.BUCKET_EMPTY.getId();
+                boolean isPlace = blockLogEntry.usesOldState();
                 BlockRestore blockRestore = plugin.getBlockRestore(blockLogEntry.getDataString(), blockLogEntry.getExtraType(), blockLogEntry.getExtraData(),
-                    isPlace, blockLogEntry.getOldDataString(), null, null);
+                    isPlace, blockLogEntry.getOldDataString(), blockLogEntry.getBlockEntityNbt(), blockLogEntry.getOldBlockEntityNbt());
                 plugin.getStellarTaskHook(() -> blockRestore.reset(gson, location)).runTask(location);
             } catch (Exception e) {
                 sender.sendMessage("§c[ERROR] Failed to restore block at " + (int) location.getX() + ", " + (int) location.getY() + ", " + (int) location.getZ() + " " + blockLogEntry.getBlockId());

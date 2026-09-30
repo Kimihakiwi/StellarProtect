@@ -57,7 +57,7 @@ public class BlockRestore {
             } else {
                 applyNewBlockData(block);
             }
-            applyContainerFromJson(block);
+            applyContainerForReset(block);
             applyBlockNbt(block);
         } catch (Exception e) {
             Bukkit.getLogger().warning("[StellarProtect] Failed to restore block at " + location + ": " + e.getMessage());
@@ -113,24 +113,16 @@ public class BlockRestore {
     }
 
     protected void applyOldBlockData(Block block) {
-        if (oldData != null) {
+        if (oldData != null && !oldData.isEmpty()) {
             try {
-                BlockData blockData = Bukkit.createBlockData(oldData);
-                block.setBlockData(blockData, false);
+                block.setBlockData(Bukkit.createBlockData(oldData), false);
                 return;
-            } catch (Exception ignored) {}
-        }
-        if (data != null) {
-            try {
-                BlockData blockData = Bukkit.createBlockData(data);
-                BlockState state = block.getState();
-                state.setBlockData(blockData);
-                state.update(true, false);
-                return;
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         block.setType(Material.AIR);
     }
+
 
     protected void applyContainerFromJson(Block block) {
         if (!hasContainerContent()) return;
@@ -144,10 +136,12 @@ public class BlockRestore {
     }
 
     protected void applyBlockNbt(Block block) {
-        if (blockEntityNbt != null && block.getState() instanceof TileState) {
-            NbtUtils.applyBlockEntity((TileState) block.getState(), blockEntityNbt);
-        }
+        String nbt = isPlace ? oldBlockEntityNbt : blockEntityNbt;
+        if (nbt == null || nbt.isEmpty()) return;
+        BlockState state = block.getState();
+        if (state instanceof TileState) NbtUtils.applyBlockEntity((TileState) state, nbt);
     }
+
 
     private static org.bukkit.block.data.BlockData createBlockDataSafe(String s) {
         try {
@@ -171,6 +165,24 @@ public class BlockRestore {
 
     public static BlockRestore fromData(String data, byte extraType, String extraData, boolean isPlace, String oldData, String blockEntityNbt, String oldBlockEntityNbt) {
         return new BlockRestore(data, extraType, extraData, isPlace, oldData, blockEntityNbt, oldBlockEntityNbt);
+    }
+
+
+    private void applyContainerForReset(Block block) {
+        if (!isPlace) applyContainerFromJson(block);
+    }
+
+    public void undoPlace(Gson gson, Location location) {
+        Block block = location.getBlock();
+        applyNewBlockData(block);
+        applyContainerFromJson(block);
+        applyNewBlockNbt(block);
+    }
+
+    private void applyNewBlockNbt(Block block) {
+        if (blockEntityNbt == null || blockEntityNbt.isEmpty()) return;
+        BlockState state = block.getState();
+        if (state instanceof TileState) NbtUtils.applyBlockEntity((TileState) state, blockEntityNbt);
     }
 
 }

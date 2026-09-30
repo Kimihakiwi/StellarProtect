@@ -64,6 +64,7 @@ public class PlayerBlockLogEntry extends LogEntry {
         setBlockId(this.blockId);
         setOldBlockId(this.oldBlockId);
         captureNbt(oldBlockState, newBlockState);
+            this.oldBlockData = oldBlockState.getBlockData().getAsString();
     }
 
     public PlayerBlockLogEntry(long playerId, BlockState blockState, ActionType actionType) {
@@ -115,12 +116,12 @@ public class PlayerBlockLogEntry extends LogEntry {
 
     private void captureNbt(BlockState oldState, BlockState newState) {
         try {
-            if (newState != null && newState.getBlock().getState() instanceof org.bukkit.block.TileState) {
-                org.bukkit.block.TileState ts = (org.bukkit.block.TileState) newState.getBlock().getState();
+            if (newState != null && newState instanceof org.bukkit.block.TileState) {
+                org.bukkit.block.TileState ts = (org.bukkit.block.TileState) newState;
                 io.github.insideranh.stellarprotect.utils.NbtUtils.writeBlockEntity(ts, json -> this.blockEntityNbt = json);
             }
-            if (oldState != null && oldState.getBlock().getState() instanceof org.bukkit.block.TileState) {
-                org.bukkit.block.TileState ts = (org.bukkit.block.TileState) oldState.getBlock().getState();
+            if (oldState != null && oldState instanceof org.bukkit.block.TileState) {
+                org.bukkit.block.TileState ts = (org.bukkit.block.TileState) oldState;
                 io.github.insideranh.stellarprotect.utils.NbtUtils.writeBlockEntity(ts, json -> this.oldBlockEntityNbt = json);
             }
         } catch (Throwable ignored) {
@@ -153,38 +154,34 @@ public class PlayerBlockLogEntry extends LogEntry {
     }
 
     public String getOldDataString() {
-        if (oldBlockData != null) return oldBlockData;
-        if (oldBlockId == 0) return null;
+        if (oldBlockData != null && !oldBlockData.isEmpty()) return oldBlockData;
+        if (oldBlockId == null || oldBlockId <= 0) return null;
         BlockTemplate blockTemplate = blocksManager.getBlockTemplate(oldBlockId);
+        if (blockTemplate == null || blockTemplate.getDataBlock() == null) return null;
         return blockTemplate.getDataBlock().getBlockDataString();
     }
+
 
     @Override
     public String toSaveJson() {
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("b", blockId);
-        if (oldBlockId != 0) {
-            jsonObject.addProperty("ob", oldBlockId);
-        }
-        if (oldBlockData != null) {
-            jsonObject.addProperty("od", oldBlockData);
-        }
-        if (nexoBlockId != null) {
-            jsonObject.addProperty("nbId", nexoBlockId);
-        }
-        if (extraType != 0) {
-            jsonObject.addProperty("xt", extraType);
-        }
-        if (extraData != null) {
-            jsonObject.addProperty("xd", extraData);
-        }
-        if (blockEntityNbt != null) {
-            jsonObject.addProperty("nbt", blockEntityNbt);
-        }
-        if (oldBlockEntityNbt != null) {
-            jsonObject.addProperty("onbt", oldBlockEntityNbt);
-        }
+        if (oldBlockId != null && oldBlockId > 0) jsonObject.addProperty("ob", oldBlockId);
+        if (oldBlockData != null) jsonObject.addProperty("od", oldBlockData);
+        if (nexoBlockId != null) jsonObject.addProperty("nbId", nexoBlockId);
+        if (extraType != 0) jsonObject.addProperty("xt", extraType);
+        if (extraData != null) jsonObject.addProperty("xd", extraData);
+        if (blockEntityNbt != null) jsonObject.addProperty("nbt", blockEntityNbt);
+        if (oldBlockEntityNbt != null) jsonObject.addProperty("onbt", oldBlockEntityNbt);
         return jsonObject.toString();
     }
+
+    public boolean usesOldState() {
+        if (getActionType() == ActionType.BLOCK_PLACE.getId()) return true;
+        if (getActionType() == ActionType.BUCKET_EMPTY.getId()) return true;
+        return getActionType() == ActionType.BUCKET_FILL.getId()
+            && (oldBlockData != null || (oldBlockId != null && oldBlockId > 0));
+    }
+
 
 }

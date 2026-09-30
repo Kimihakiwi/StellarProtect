@@ -3,12 +3,7 @@ package io.github.insideranh.stellarprotect.commands.arguments.basic;
 import io.github.insideranh.stellarprotect.StellarProtect;
 import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import io.github.insideranh.stellarprotect.commands.StellarArgument;
-import io.github.insideranh.stellarprotect.items.ItemTemplate;
-import io.github.insideranh.stellarprotect.items.MemoryAnalysisItem;
-import io.github.insideranh.stellarprotect.items.memory.ItemTemplateLight;
 import org.bukkit.command.CommandSender;
-import org.jetbrains.annotations.NotNull;
-import org.openjdk.jol.info.GraphLayout;
 
 import java.util.*;
 
@@ -17,60 +12,23 @@ public class MemoryArgument extends StellarArgument {
     private final StellarProtect plugin = StellarProtect.getInstance();
 
     @Override
-    public void onCommand(@NotNull CommandSender sender, String[] arguments) {
-        boolean footprint = arguments.length > 0 && arguments[0].equalsIgnoreCase("footprint");
-        sender.sendMessage("§aLoading memory analysis...");
-
-        plugin.getLookupExecutor().execute(() -> {
-            Map<String, MemoryAnalysisItem> memoryObjects = new LinkedHashMap<>();
-
-            HashMap<Long, ItemTemplateLight> idToTemplate = new HashMap<>();
-            for (ItemTemplate item : plugin.getItemsManager().getItemCache().items()) {
-                if (item == null) continue;
-                ItemTemplateLight light = new ItemTemplateLight(item.getId(), item.getBase64(), item.getDisplayName(), item.getLore(), item.getTypeName(), item.getDisplayNameLower(), item.getLoreLower(), item.getTypeNameLower());
-                idToTemplate.put(item.getId(), light);
-            }
-
-            memoryObjects.put("messages.memory.itemTemplates", new MemoryAnalysisItem(idToTemplate));
-            memoryObjects.put("messages.memory.cachedLogsByCategory", new MemoryAnalysisItem(LoggerCache.getCachedLogsByCategory()));
-            memoryObjects.put("messages.memory.unSavedLogsByCategory", new MemoryAnalysisItem(LoggerCache.getUnSavedLogsByCategory()));
-            memoryObjects.put("messages.memory.placedBlockLogs", new MemoryAnalysisItem(LoggerCache.getPlacedBlockLogs()));
-            memoryObjects.put("messages.memory.queryCache", new MemoryAnalysisItem(LoggerCache.getQueryCache()));
-
-            sender.sendMessage(plugin.getLangManager().get("messages.memory.title"));
-
-            long totalMemoryUsage = 0;
-            for (Map.Entry<String, MemoryAnalysisItem> entry : memoryObjects.entrySet()) {
-                String messageKey = entry.getKey();
-                MemoryAnalysisItem item = entry.getValue();
-
-                sender.sendMessage(plugin.getLangManager().get(messageKey));
-
-                GraphLayout layout = GraphLayout.parseInstance(item.getObject());
-                if (footprint) {
-                    sender.sendMessage(plugin.getLangManager().get("messages.memory.footprint"));
-                    sender.sendMessage(layout.toFootprint());
-                }
-
-                long sizeInBytes = layout.totalSize();
-                String formattedSize = formatMemorySize(sizeInBytes);
-
-                sender.sendMessage(plugin.getLangManager().get("messages.memory.total") + " " + formattedSize);
-                sender.sendMessage("");
-
-                totalMemoryUsage += sizeInBytes;
-            }
-
-            sender.sendMessage(plugin.getLangManager().get("messages.memory.summary.title"));
-            sender.sendMessage(plugin.getLangManager().get("messages.memory.summary.totalMemory") + formatMemorySize(totalMemoryUsage));
-            sender.sendMessage(plugin.getLangManager().get("messages.memory.summary.objectsAnalyzed") + memoryObjects.size());
-        });
+    public void onCommand(CommandSender sender, String[] args) {
+        Runtime runtime = Runtime.getRuntime();
+        long used = runtime.totalMemory() - runtime.freeMemory();
+        sender.sendMessage("§aMemory analysis");
+        sender.sendMessage("§7JVM used: §f" + formatMemorySize(used));
+        sender.sendMessage("§7JVM committed: §f" + formatMemorySize(runtime.totalMemory()));
+        sender.sendMessage("§7JVM max: §f" + formatMemorySize(runtime.maxMemory()));
+        sender.sendMessage("§7Item templates: §f" + StellarProtect.getInstance().getItemsManager().getItemCache().size());
+        sender.sendMessage("§7Query cache: §f" + LoggerCache.getQueryCache().size());
     }
+
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, String[] arguments) {
-        return new LinkedList<>(Collections.singletonList("footprint"));
+    public List<String> onTabComplete(CommandSender sender, String[] args) {
+        return Collections.emptyList();
     }
+
 
     private String formatMemorySize(long bytes) {
         if (bytes < 1024) {

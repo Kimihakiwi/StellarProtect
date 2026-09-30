@@ -223,8 +223,8 @@ public class BlockListener implements Listener {
 
         Player player = event.getPlayer();
 
-        for (BlockState state : event.getReplacedBlockStates()) {
-            processBlockPlace(state.getBlock(), player, -2L);
+        for (BlockState oldState : event.getReplacedBlockStates()) {
+            processBlockPlace(oldState.getBlock(), oldState, player, -2L);
         }
     }
 
@@ -299,10 +299,12 @@ public class BlockListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         if (event.isCancelled()) return;
 
-        Block block = event.getBlock();
-        Player player = event.getPlayer();
-
-        processBlockPlace(block, player, -2L);
+        processBlockPlace(
+            event.getBlockPlaced(),
+            event.getBlockReplacedState(),
+            event.getPlayer(),
+            -2L
+        );
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -359,6 +361,36 @@ public class BlockListener implements Listener {
 
         LoggerCache.addLog(new PlayerBlockLogEntry(playerId, block, ActionType.BLOCK_PLACE));
     }
+
+    private void processBlockPlace(Block block, BlockState oldState, @Nullable Player player, long defaultId) {
+        if (block.getType().equals(Material.AIR)
+            || ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name())) {
+            return;
+        }
+
+        long playerId = getPlayerId(player, defaultId);
+
+        if (plugin.getNexoHook() != null
+            && player != null
+            && plugin.getNexoHook().isNexoListener(block, plugin.getProtectNMS().getItemInHand(player))) {
+            return;
+        }
+
+        if (plugin.getItemsAdderHook() != null
+            && player != null
+            && plugin.getItemsAdderHook().isItemsAdderListener(block, plugin.getProtectNMS().getItemInHand(player))) {
+            return;
+        }
+
+        LoggerCache.addLog(new PlayerBlockLogEntry(
+            playerId,
+            oldState,
+            block.getState(),
+            ActionType.BLOCK_PLACE
+        ));
+    }
+
+
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onLeavesDecay(LeavesDecayEvent event) {

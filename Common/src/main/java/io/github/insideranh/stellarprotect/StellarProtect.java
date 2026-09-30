@@ -50,6 +50,7 @@ import io.github.insideranh.stellarprotect.restore.BlockRestore;
 import io.github.insideranh.stellarprotect.trackers.BlockTracker;
 import io.github.insideranh.stellarprotect.trackers.ChestTransactionTracker;
 import io.github.insideranh.stellarprotect.utils.UpdateChecker;
+import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
@@ -66,6 +67,7 @@ import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
 
 @Getter
 public class StellarProtect extends JavaPlugin {
@@ -135,6 +137,7 @@ public class StellarProtect extends JavaPlugin {
 
         this.isFolia = MinecraftVersions.WILD_UPDATE.isAtLeast() && ServerVersions.isFolia();
         this.loadNMS();
+        if (this.localVersion == null) return;
 
         this.lookupExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1024)));
         this.joinExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1024)));
@@ -196,13 +199,36 @@ public class StellarProtect extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (worldEditHook != null) {
-            worldEditHook.cleanup();
+        if (cacheManager != null) cacheManager.shutdown();
+        if (worldEditHook != null) worldEditHook.cleanup();
+
+        if (executor != null && protectDatabase != null) {
+            protectDatabase.save(LoggerCache.getFlushLogsToDatabase());
+            if (itemsManager != null) itemsManager.saveItems();
+            if (blocksManager != null) blocksManager.saveBlocks();
         }
 
-        this.protectDatabase.close();
-        this.bStats.shutdown();
+        shutdownExecutor(executor);
+        shutdownExecutor(lookupExecutor);
+        shutdownExecutor(joinExecutor);
+
+        if (protectDatabase != null) protectDatabase.close();
+        if (bStats != null) bStats.shutdown();
     }
+
+    private static void shutdownExecutor(ExecutorService executor) {
+        if (executor == null) return;
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10L, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
 
     void loadLastHooks() {
         getStellarTaskHook(() -> {

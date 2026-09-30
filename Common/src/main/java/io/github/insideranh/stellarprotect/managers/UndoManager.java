@@ -75,15 +75,6 @@ public class UndoManager {
                 }
 
                 processedCount++;
-
-                if (processedCount % MAX_PER_TICK == 0) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
             }
         }
     }
@@ -97,15 +88,6 @@ public class UndoManager {
                 undoRestore(logEntry, sender, verbose);
 
                 processedCount++;
-
-                if (processedCount % MAX_PER_TICK == 0) {
-                    try {
-                        Thread.sleep(1);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
-                }
             }
         }
     }
@@ -126,12 +108,12 @@ public class UndoManager {
             }
 
             try {
-                boolean isPlace = blockLogEntry.getActionType() == ActionType.BLOCK_PLACE.getId() || blockLogEntry.getActionType() == ActionType.BUCKET_EMPTY.getId();
+                boolean isPlace = blockLogEntry.usesOldState();
                 BlockRestore blockRestore = plugin.getBlockRestore(blockLogEntry.getDataString(), blockLogEntry.getExtraType(), blockLogEntry.getExtraData(),
-                    isPlace, blockLogEntry.getOldDataString(), null, null);
+                    isPlace, blockLogEntry.getOldDataString(), blockLogEntry.getBlockEntityNbt(), blockLogEntry.getOldBlockEntityNbt());
 
                 if (isPlace) {
-                    plugin.getStellarTaskHook(() -> blockRestore.reset(gson, location)).runTask(location);
+                    plugin.getStellarTaskHook(() -> blockRestore.undoPlace(gson, location)).runTask(location);
                 } else {
                     plugin.getStellarTaskHook(() -> blockRestore.remove(location)).runTask(location);
                 }

@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.UUID;
 
 public class PlayerRepositoryMySQL implements PlayerRepository {
 
@@ -57,6 +58,42 @@ public class PlayerRepositoryMySQL implements PlayerRepository {
             }
 
             return new PlayerProtect(player.getUniqueId(), player.getName(), newId);
+
+        } catch (SQLException e) {
+            stellarProtect.getLogger().log(Level.SEVERE, "Error in loadOrCreatePlayer", e);
+            return null;
+        }
+    }
+
+    @Override
+    public PlayerProtect loadOrCreatePlayer(UUID uuid, String name) {
+        try (Connection connection = getConnection()) {
+            try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id FROM " + configManager.getTablesPlayers() + " WHERE uuid = ?")) {
+
+                select.setString(1, uuid.toString());
+
+                try (ResultSet result = select.executeQuery()) {
+                    if (result.next()) {
+                        long id = result.getLong("id");
+                        return new PlayerProtect(uuid, name, id);
+                    }
+                }
+            }
+
+            long newId = generateNextId();
+
+            try (PreparedStatement insert = connection.prepareStatement(
+                "INSERT INTO " + configManager.getTablesPlayers() + " (id, uuid, name, realname) VALUES (?, ?, ?, ?)")) {
+
+                insert.setLong(1, newId);
+                insert.setString(2, uuid.toString());
+                insert.setString(3, name.toLowerCase());
+                insert.setString(4, name);
+                insert.executeUpdate();
+            }
+
+            return new PlayerProtect(uuid, name, newId);
 
         } catch (SQLException e) {
             stellarProtect.getLogger().log(Level.SEVERE, "Error in loadOrCreatePlayer", e);

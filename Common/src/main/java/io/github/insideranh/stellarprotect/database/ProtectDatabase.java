@@ -15,6 +15,7 @@ import io.github.insideranh.stellarprotect.database.types.SQLConnection;
 import io.github.insideranh.stellarprotect.database.types.SQLQueueConnection;
 import io.github.insideranh.stellarprotect.items.ItemTemplate;
 import io.github.insideranh.stellarprotect.utils.Debugger;
+import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import lombok.NonNull;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.UUID;
 
 public class ProtectDatabase {
 
@@ -57,8 +59,10 @@ public class ProtectDatabase {
     }
 
     public void close() {
-        this.databaseConnection.close();
+        if (this.databaseConnection != null) this.databaseConnection.close();
+        if (this.temporalConnection != null) this.temporalConnection.close();
     }
+
 
     public void clearOldLogs() {
         this.databaseConnection.getLoggerRepository().clearOldLogs();
@@ -156,7 +160,7 @@ public class ProtectDatabase {
                     logEntries.add(logEntry);
                 }
 
-                databaseConnection.getLoggerRepository().save(logEntries);
+                databaseConnection.getLoggerRepository().saveSync(logEntries);
 
                 if (!queuedLogs.isEmpty()) {
                     long maxId = queuedLogs.get(queuedLogs.size() - 1).getId();
@@ -169,6 +173,16 @@ public class ProtectDatabase {
                 e.printStackTrace();
             }
         });
+    }
+
+
+    public PlayerProtect loadOrCreatePlayer(UUID uuid, String name) {
+        return databaseConnection.getPlayerRepository().loadOrCreatePlayer(uuid, name);
+    }
+
+    public void flushLogsSync() {
+        List<LogEntry> logs = LoggerCache.getFlushLogsToDatabase();
+        if (!logs.isEmpty()) databaseConnection.getLoggerRepository().saveSync(logs);
     }
 
 }

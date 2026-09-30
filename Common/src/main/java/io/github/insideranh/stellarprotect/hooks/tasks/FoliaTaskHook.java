@@ -41,7 +41,7 @@ public class FoliaTaskHook extends StellarTaskHook {
 
     @Override
     public TaskCanceller runTaskTimer(long delay, long period) {
-        TaskImplementation<Void> task = serverImplementation.async().runAtFixedRate(runnable, delay, period);
+        TaskImplementation<Void> task = serverImplementation.global().runAtFixedRate(runnable, delay, period);
         return new TaskCanceller(task::cancel);
     }
 

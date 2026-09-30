@@ -171,66 +171,72 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
         long start = System.currentTimeMillis();
         Debugger.debugSave("Saving log entries...");
 
-        stellarProtect.getExecutor().execute(() -> {
-            try (Connection connection = getConnection()) {
-                connection.setAutoCommit(false);
+        try {
+            stellarProtect.getExecutor().execute(() -> {
+                        try (Connection connection = getConnection()) {
+                            connection.setAutoCommit(false);
 
-                try (PreparedStatement playerStmt = connection.prepareStatement(
-                    "INSERT INTO " + stellarProtect.getConfigManager().getTablesLogEntries() + " (player_id, world_id, x, y, z, action_type, restored, extra_json, created_at, block_id, old_block_id, item_id, amount, entity_type, chunk_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                , java.sql.Statement.RETURN_GENERATED_KEYS)) {
-                    for (LogEntry playerLog : logEntries) {
-                        String extraJson = playerLog.toSaveJson();
+                            try (PreparedStatement playerStmt = connection.prepareStatement(
+                                "INSERT INTO " + stellarProtect.getConfigManager().getTablesLogEntries() + " (player_id, world_id, x, y, z, action_type, restored, extra_json, created_at, block_id, old_block_id, item_id, amount, entity_type, chunk_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                            , java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                                for (LogEntry playerLog : logEntries) {
+                                    String extraJson = playerLog.toSaveJson();
 
-                        playerStmt.setLong(1, playerLog.getPlayerId());
-                        playerStmt.setInt(2, playerLog.getWorldId());
-                        playerStmt.setDouble(3, playerLog.getX());
-                        playerStmt.setDouble(4, playerLog.getY());
-                        playerStmt.setDouble(5, playerLog.getZ());
-                        playerStmt.setInt(6, playerLog.getActionType());
-                        playerStmt.setByte(7, playerLog.getRestored());
-                        playerStmt.setString(8, extraJson);
-                        playerStmt.setLong(9, playerLog.getCreatedAt());
-                        if (playerLog.getBlockId() != null) playerStmt.setInt(10, playerLog.getBlockId()); else playerStmt.setNull(10, java.sql.Types.INTEGER);
-                        if (playerLog.getOldBlockId() != null) playerStmt.setInt(11, playerLog.getOldBlockId()); else playerStmt.setNull(11, java.sql.Types.INTEGER);
-                        if (playerLog.getItemId() != null) playerStmt.setLong(12, playerLog.getItemId()); else playerStmt.setNull(12, java.sql.Types.BIGINT);
-                        playerStmt.setInt(13, playerLog.getAmount());
-                        playerStmt.setString(14, playerLog.getEntityType());
-                        if (playerLog.getChunkKey() != null) playerStmt.setLong(15, playerLog.getChunkKey()); else playerStmt.setNull(15, java.sql.Types.BIGINT);
-                        playerStmt.addBatch();
-                    }
+                                    playerStmt.setLong(1, playerLog.getPlayerId());
+                                    playerStmt.setInt(2, playerLog.getWorldId());
+                                    playerStmt.setDouble(3, playerLog.getX());
+                                    playerStmt.setDouble(4, playerLog.getY());
+                                    playerStmt.setDouble(5, playerLog.getZ());
+                                    playerStmt.setInt(6, playerLog.getActionType());
+                                    playerStmt.setByte(7, playerLog.getRestored());
+                                    playerStmt.setString(8, extraJson);
+                                    playerStmt.setLong(9, playerLog.getCreatedAt());
+                                    if (playerLog.getBlockId() != null) playerStmt.setInt(10, playerLog.getBlockId()); else playerStmt.setNull(10, java.sql.Types.INTEGER);
+                                    if (playerLog.getOldBlockId() != null) playerStmt.setInt(11, playerLog.getOldBlockId()); else playerStmt.setNull(11, java.sql.Types.INTEGER);
+                                    if (playerLog.getItemId() != null) playerStmt.setLong(12, playerLog.getItemId()); else playerStmt.setNull(12, java.sql.Types.BIGINT);
+                                    LoggerRepository.setNullableInt(playerStmt, 13, playerLog.getAmount());
+                                    playerStmt.setString(14, playerLog.getEntityType());
+                                    if (playerLog.getChunkKey() != null) playerStmt.setLong(15, playerLog.getChunkKey()); else playerStmt.setNull(15, java.sql.Types.BIGINT);
+                                    playerStmt.addBatch();
+                                }
 
-                    playerStmt.executeBatch();
+                                playerStmt.executeBatch();
 
-                    java.sql.ResultSet generatedKeys = playerStmt.getGeneratedKeys();
-                    Map<PlayerTransactionEntry, Long> txnEntries = new HashMap<>();
-                    int idx = 0;
-                    while (generatedKeys.next()) {
-                        long logId = generatedKeys.getLong(1);
-                        if (idx < logEntries.size()) {
-                            LogEntry le = logEntries.get(idx);
-                            if (le instanceof PlayerTransactionEntry) {
-                                txnEntries.put((PlayerTransactionEntry) le, logId);
+                                java.sql.ResultSet generatedKeys = playerStmt.getGeneratedKeys();
+                                Map<PlayerTransactionEntry, Long> txnEntries = new HashMap<>();
+                                int idx = 0;
+                                while (generatedKeys.next()) {
+                                    long logId = generatedKeys.getLong(1);
+                                    if (idx < logEntries.size()) {
+                                        LogEntry le = logEntries.get(idx);
+                                        if (le instanceof PlayerTransactionEntry) {
+                                            txnEntries.put((PlayerTransactionEntry) le, logId);
+                                        }
+                                    }
+                                    idx++;
+                                }
+
+                                connection.commit();
+
+                                saveInventoryTxns(connection, txnEntries);
+
+                            } catch (Exception e) {
+                                connection.rollback();
+                                Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().saveQueue(logEntries);
+                            } finally {
+                                connection.setAutoCommit(true);
                             }
+                        } catch (Exception e) {
+                            Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().saveQueue(logEntries);
                         }
-                        idx++;
-                    }
 
-                    connection.commit();
-
-                    saveInventoryTxns(connection, txnEntries);
-
-                } catch (Exception e) {
-                    connection.rollback();
-                    Debugger.debugSave("Failed to save log entries. Trying again...");
-                } finally {
-                    connection.setAutoCommit(true);
-                }
-            } catch (Exception e) {
-                Debugger.debugSave("Failed to save log entries. Trying again...");
-            }
-
-            Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
-        });
+                        Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                    });
+        } catch (java.util.concurrent.RejectedExecutionException rejected) {
+            stellarProtect.getProtectDatabase().saveQueue(logEntries);
+        }
     }
 
     private void saveInventoryTxns(Connection connection, Map<PlayerTransactionEntry, Long> txnEntries) {
@@ -282,6 +288,7 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
                 } catch (Exception e) {
                     connection.rollback();
                     Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().saveQueue(logEntries);
                 } finally {
                     connection.setAutoCommit(true);
                 }
@@ -924,6 +931,74 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
         public List<Object> getParameters() {
             return new ArrayList<>(parameters);
         }
+    }
+
+
+
+    @Override
+    public void saveSync(List<LogEntry> logEntries) {
+        long start = System.currentTimeMillis();
+        Debugger.debugSave("Saving log entries...");
+    try (Connection connection = getConnection()) {
+                    connection.setAutoCommit(false);
+
+                    try (PreparedStatement playerStmt = connection.prepareStatement(
+                        "INSERT INTO " + stellarProtect.getConfigManager().getTablesLogEntries() + " (player_id, world_id, x, y, z, action_type, restored, extra_json, created_at, block_id, old_block_id, item_id, amount, entity_type, chunk_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                    , java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                        for (LogEntry playerLog : logEntries) {
+                            String extraJson = playerLog.toSaveJson();
+
+                            playerStmt.setLong(1, playerLog.getPlayerId());
+                            playerStmt.setInt(2, playerLog.getWorldId());
+                            playerStmt.setDouble(3, playerLog.getX());
+                            playerStmt.setDouble(4, playerLog.getY());
+                            playerStmt.setDouble(5, playerLog.getZ());
+                            playerStmt.setInt(6, playerLog.getActionType());
+                            playerStmt.setByte(7, playerLog.getRestored());
+                            playerStmt.setString(8, extraJson);
+                            playerStmt.setLong(9, playerLog.getCreatedAt());
+                            if (playerLog.getBlockId() != null) playerStmt.setInt(10, playerLog.getBlockId()); else playerStmt.setNull(10, java.sql.Types.INTEGER);
+                            if (playerLog.getOldBlockId() != null) playerStmt.setInt(11, playerLog.getOldBlockId()); else playerStmt.setNull(11, java.sql.Types.INTEGER);
+                            if (playerLog.getItemId() != null) playerStmt.setLong(12, playerLog.getItemId()); else playerStmt.setNull(12, java.sql.Types.BIGINT);
+                            LoggerRepository.setNullableInt(playerStmt, 13, playerLog.getAmount());
+                            playerStmt.setString(14, playerLog.getEntityType());
+                            if (playerLog.getChunkKey() != null) playerStmt.setLong(15, playerLog.getChunkKey()); else playerStmt.setNull(15, java.sql.Types.BIGINT);
+                            playerStmt.addBatch();
+                        }
+
+                        playerStmt.executeBatch();
+
+                        java.sql.ResultSet generatedKeys = playerStmt.getGeneratedKeys();
+                        Map<PlayerTransactionEntry, Long> txnEntries = new HashMap<>();
+                        int idx = 0;
+                        while (generatedKeys.next()) {
+                            long logId = generatedKeys.getLong(1);
+                            if (idx < logEntries.size()) {
+                                LogEntry le = logEntries.get(idx);
+                                if (le instanceof PlayerTransactionEntry) {
+                                    txnEntries.put((PlayerTransactionEntry) le, logId);
+                                }
+                            }
+                            idx++;
+                        }
+
+                        connection.commit();
+
+                        saveInventoryTxns(connection, txnEntries);
+
+                    } catch (Exception e) {
+                        connection.rollback();
+                        Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().saveQueue(logEntries);
+                    } finally {
+                        connection.setAutoCommit(true);
+                    }
+                } catch (Exception e) {
+                    Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().saveQueue(logEntries);
+                }
+
+                Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
     }
 
 }

@@ -46,15 +46,10 @@ public class EventVersionHandler implements EventLogicHandler {
         LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), itemReference, player.getLocation(), ActionType.SMITH));
     }
 
-    @Override
-    public void onBrewEvent(ItemStack ingredient, ItemStack fuel, List<ItemStack> results) {
-        if (!plugin.getConfigManager().isLiquidTracking()) return;
-        for (ItemStack result : results) {
-            if (result == null || result.getType().name().equals("AIR")) continue;
-            BrewingLogEntry entry = new BrewingLogEntry(Bukkit.getPlayerExact(""), ingredient, fuel, result);
-            LoggerCache.addLog(entry);
-        }
+    public void onBrewEvent(ItemStack ingredient, ItemStack fuel,
+                            List<ItemStack> results) {
     }
+
 
     @Override
     public void onTotemEvent(Entity entity, String hand) {

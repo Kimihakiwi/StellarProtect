@@ -75,7 +75,7 @@ public class ArgumentsParser {
     }
 
     public static List<String> parseIncludesMaterials(String[] arguments) {
-        String joined = String.join(" ", arguments).toLowerCase(Locale.ROOT).replace("\\", "").replace("'", "").replace(",", "");
+        String joined = String.join(" ", arguments).toLowerCase(Locale.ROOT).replace("\\", "").replace("'", "");
 
         List<String> actionTypes = new ArrayList<>();
         for (String part : joined.split("\\s+")) {
@@ -88,7 +88,7 @@ public class ArgumentsParser {
     }
 
     public static List<String> parseExcludesMaterials(String[] arguments) {
-        String joined = String.join(" ", arguments).toLowerCase(Locale.ROOT).replace("\\", "").replace("'", "").replace(",", "");
+        String joined = String.join(" ", arguments).toLowerCase(Locale.ROOT).replace("\\", "").replace("'", "");
 
         List<String> actionTypes = new ArrayList<>();
         for (String part : joined.split("\\s+")) {
@@ -143,40 +143,35 @@ public class ArgumentsParser {
         return null;
     }
 
-    public static @NonNull TimeArg parseTime(String[] arguments) {
-        String joined = String.join(" ", arguments).toLowerCase(Locale.ROOT).replace("\\", "").replace("'", "");
-
-        for (String part : joined.split("\\s+")) {
-            if (part.startsWith("t:") || part.startsWith("time:")) {
-                String timeSegment = part.replaceFirst("^(t:|time:)", "");
-                timeSegment = timeSegment.replace(",", "");
-
-                String[] rangeParts = timeSegment.split("-");
-
-                if (rangeParts.length == 0) {
-                    return new TimeArg("", "", System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1), System.currentTimeMillis());
-                }
-
-                String startString = rangeParts[0];
-                String endString = rangeParts.length > 1 ? rangeParts[1] : "";
-
-                long startDurationMs = parseEnhancedDuration(rangeParts[0]) * 1000L;
-                long endDurationMs = rangeParts.length > 1 ? parseEnhancedDuration(rangeParts[1]) * 1000L : 0;
-
-                long timeStart = System.currentTimeMillis() - startDurationMs;
-                long timeEnd = endDurationMs > 0 ? System.currentTimeMillis() - endDurationMs : System.currentTimeMillis();
-
-                if (timeStart > timeEnd) {
-                    long temp = timeStart;
-                    timeStart = timeEnd;
-                    timeEnd = temp;
-                }
-
-                return new TimeArg(startString, endString, timeStart, timeEnd);
-            }
+    public static TimeArg parseTime(String[] arguments) {
+        long now = System.currentTimeMillis();
+        for (String argument : arguments) {
+            if (argument == null) continue;
+            String lower = argument.trim().toLowerCase(Locale.ROOT);
+            String value;
+            if (lower.startsWith("t:")) value = lower.substring(2);
+            else if (lower.startsWith("time:")) value = lower.substring(5);
+            else if (lower.matches("[0-9]+(?:\.[0-9]+)?(?:mo|[ywdhms])(?:-[0-9]+(?:\.[0-9]+)?(?:mo|[ywdhms]))?")) value = lower;
+            else continue;
+            value = value.replace(",", "");
+            if (value.isEmpty()) continue;
+            String[] parts = value.split("-", 2);
+            long startSeconds = parseDurationSeconds(parts[0]);
+            if (startSeconds <= 0L) continue;
+            long endSeconds = parts.length > 1 ? parseDurationSeconds(parts[1]) : 0L;
+            long start = now - startSeconds * 1000L;
+            long end = endSeconds > 0L ? now - endSeconds * 1000L : now;
+            if (start > end) { long swap = start; start = end; end = swap; }
+            return new TimeArg(parts[0], parts.length > 1 ? parts[1] : "", start, end);
         }
-        return new TimeArg("", "", 0, System.currentTimeMillis());
+        return new TimeArg("", "", 0L, now);
     }
+
+    private static long parseDurationSeconds(String value) {
+        if (value != null && value.matches("[0-9]+(?:\.[0-9]+)?")) return (long) (Double.parseDouble(value) * 60.0D);
+        return parseEnhancedDuration(value);
+    }
+
 
     private static long parseEnhancedDuration(String duration) {
         if (duration == null || duration.isEmpty()) {

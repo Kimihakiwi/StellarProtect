@@ -69,4 +69,26 @@ public class BrewingLogEntry extends LogEntry {
         return obj.toString();
     }
 
+
+    public BrewingLogEntry(Location location, ItemStack ingredient,
+                           ItemStack fuel, ItemStack result) {
+        super(-2L, ActionType.BREWING.getId(), location, System.currentTimeMillis());
+        long ingredientId = -1L;
+        long fuelId = -1L;
+        long resultId = -1L;
+        StellarProtect plugin = StellarProtect.getInstance();
+        if (ingredient != null && ingredient.getType() != org.bukkit.Material.AIR)
+            ingredientId = plugin.getItemsManager().getItemReference(ingredient).getTemplateId();
+        if (fuel != null && fuel.getType() != org.bukkit.Material.AIR)
+            fuelId = plugin.getItemsManager().getItemReference(fuel).getTemplateId();
+        if (result != null && result.getType() != org.bukkit.Material.AIR)
+            resultId = plugin.getItemsManager().getItemReference(result).getTemplateId();
+        this.ingredientId = ingredientId;
+        this.fuelId = fuelId;
+        this.resultId = resultId;
+        this.amount = result == null ? 1 : result.getAmount();
+        setItemId(resultId);
+        setAmount(this.amount);
+    }
+
 }

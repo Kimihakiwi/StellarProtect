@@ -182,25 +182,25 @@ public class MySQLConnection implements DatabaseConnection {
 
         try (Connection connection = dataSource.getConnection()) {
             try (Statement stmt = connection.createStatement()) {
-                stmt.execute("DROP INDEX idx_query_main ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_log_entries_optimized ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_action_time_coords ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_log_entries_filtering ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_query_optimized ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_covering_query ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_coords_time ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_query_main ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_log_entries_optimized ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_action_time_coords ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_log_entries_filtering ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_query_optimized ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_covering_query ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_coords_time ON " + logEntries + ";");
 
-                stmt.execute("DROP INDEX idx_item_hash ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_access_count ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_last_accessed ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_total_used ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_hash ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_access_count ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_last_accessed ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_total_used ON " + itemTemplates + ";");
 
-                stmt.execute("CREATE INDEX idx_location_time_lookup ON " + logEntries + " (created_at DESC, x, y, z, action_type)");
-                stmt.execute("CREATE INDEX idx_player_time ON " + logEntries + " (player_id, created_at)");
-                stmt.execute("CREATE INDEX idx_world_time ON " + logEntries + " (world_id, created_at)");
-                stmt.execute("CREATE INDEX idx_time_action ON " + logEntries + " (created_at, action_type)");
+                executeIndexSql(stmt, "CREATE INDEX idx_location_time_lookup ON " + logEntries + " (created_at DESC, x, y, z, action_type)");
+                executeIndexSql(stmt, "CREATE INDEX idx_player_time ON " + logEntries + " (player_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_world_time ON " + logEntries + " (world_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_time_action ON " + logEntries + " (created_at, action_type)");
 
-                stmt.execute("CREATE INDEX idx_players_id ON " + players + " (id)");
+                executeIndexSql(stmt, "CREATE INDEX idx_players_id ON " + players + " (id)");
             }
         } catch (SQLException e) {
             stellarProtect.getLogger().warning("Failed to create indexes: " + e.getMessage());
@@ -244,6 +244,16 @@ public class MySQLConnection implements DatabaseConnection {
     public void close() {
         if (this.dataSource != null) {
             this.dataSource.close();
+        }
+    }
+
+
+    private static boolean executeIndexSql(Statement statement, String sql) throws SQLException {
+        try {
+            return statement.execute(sql);
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 1091 || e.getErrorCode() == 1061) return false;
+            throw e;
         }
     }
 

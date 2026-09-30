@@ -66,6 +66,7 @@ public enum MinecraftVersion {
     }
 
     public static MinecraftVersion get(String v) {
+        if (v != null && (v.startsWith("26.3") || v.startsWith("26.2"))) return v26_1_R2;
         String replaced = v.replace('.', '_');
 
         for (MinecraftVersion k : MinecraftVersion.values()) {

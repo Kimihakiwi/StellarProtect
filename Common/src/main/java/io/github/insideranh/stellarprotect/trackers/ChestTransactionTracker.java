@@ -78,7 +78,7 @@ public class ChestTransactionTracker implements Listener {
 
         plugin.getStellarTaskHook(() -> {
             if (activeEditing.get(playerName)) {
-                captureInitialState(player, chestLocation);
+                captureInitialState(playerName, chestLocation);
             }
         }).runTask(chestLocation, 1L);
 
@@ -151,20 +151,17 @@ public class ChestTransactionTracker implements Listener {
         }
     }
 
-    private void captureInitialState(Player player, Location chestLocation) {
+    private void captureInitialState(String playerName, Location chestLocation) {
         Block block = chestLocation.getBlock();
         if (!WorldUtils.isValidChestBlock(block.getType())) return;
-
         BlockState state = block.getState();
         if (!(state instanceof InventoryHolder)) return;
-
-        InventoryHolder holder = (InventoryHolder) state;
-        Inventory inventory = holder.getInventory();
-
-        String inventoryId = getInventoryId(player.getName(), chestLocation);
+        Inventory inventory = ((InventoryHolder) state).getInventory();
+        String inventoryId = getInventoryId(playerName, chestLocation);
         ItemCount[] snapshot = captureInventorySnapshot(inventory.getContents());
         initialInventoryStates.put(inventoryId, snapshot);
     }
+
 
     private void finishChestEditing(Player player) {
         String playerName = player.getName();
@@ -182,13 +179,15 @@ public class ChestTransactionTracker implements Listener {
                     InventoryHolder holder = (InventoryHolder) state;
                     Inventory inventory = holder.getInventory();
                     ItemStack[] inventoryContents = inventory.getContents();
+                    final PlayerProtect cachedPlayerProtect = PlayerProtect.getPlayer(player);
                     plugin.getExecutor().execute(() -> {
+
                         ItemCount[] currentSnapshot = captureInventorySnapshot(inventoryContents);
 
                         TransactionResult result = compareSnapshots(playerName, chestLocation, initialSnapshot, currentSnapshot);
 
                         if (!result.itemsAdded.isEmpty() || !result.itemsRemoved.isEmpty()) {
-                            handleTransaction(player, result);
+                            handleTransaction(cachedPlayerProtect, result);
                         }
 
                         returnToPool(initialSnapshot);
@@ -323,13 +322,10 @@ public class ChestTransactionTracker implements Listener {
         return hash;
     }
 
-    private void handleTransaction(Player player, TransactionResult result) {
-        PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
+    private void handleTransaction(PlayerProtect playerProtect, TransactionResult result) {
         if (playerProtect == null) return;
-
         Map<Long, Integer> itemsAdded = new HashMap<>();
         Map<Long, Integer> itemsRemoved = new HashMap<>();
-
         for (Map.Entry<ItemStack, Integer> entry : result.itemsAdded.entrySet()) {
             ItemReference itemReference = plugin.getItemsManager().getItemReference(entry.getKey(), entry.getValue());
             itemsAdded.put(itemReference.getTemplateId(), entry.getValue());
@@ -338,8 +334,10 @@ public class ChestTransactionTracker implements Listener {
             ItemReference itemReference = plugin.getItemsManager().getItemReference(entry.getKey(), entry.getValue());
             itemsRemoved.put(itemReference.getTemplateId(), entry.getValue());
         }
-        LoggerCache.addLog(new PlayerTransactionEntry(playerProtect.getPlayerId(), itemsAdded, itemsRemoved, result.chestLocation, ActionType.INVENTORY_TRANSACTION));
+        LoggerCache.addLog(new PlayerTransactionEntry(playerProtect.getPlayerId(), itemsAdded, itemsRemoved,
+            result.chestLocation, ActionType.INVENTORY_TRANSACTION));
     }
+
 
     public JsonObject getInventoryContent(Inventory inventory) {
         JsonObject jsonObject = new JsonObject();
@@ -390,11 +388,11 @@ public class ChestTransactionTracker implements Listener {
         Debugger.debugExtras("Limpieza completada. Eliminados " + keysToRemove.size() + " estados antiguos y " + playersToRemove.size() + " jugadores desconectados.");
     }
 
-    private ItemCount[] getFromPool() {
+    private synchronized ItemCount[] getFromPool() {
         return ARRAY_POOL.poll();
     }
 
-    private void returnToPool(ItemCount[] array) {
+    private synchronized void returnToPool(ItemCount[] array) {
         if (array != null && ARRAY_POOL.size() < POOL_SIZE) {
             for (ItemCount ic : array) {
                 if (ic != null) {
@@ -406,11 +404,11 @@ public class ChestTransactionTracker implements Listener {
         }
     }
 
-    private ItemCounter getCounterFromPool() {
+    private synchronized ItemCounter getCounterFromPool() {
         return COUNTER_POOL.poll();
     }
 
-    private void returnCounterToPool(ItemCounter counter) {
+    private synchronized void returnCounterToPool(ItemCounter counter) {
         if (counter != null && COUNTER_POOL.size() < POOL_SIZE) {
             COUNTER_POOL.offer(counter);
         }

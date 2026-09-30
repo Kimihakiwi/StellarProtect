@@ -24,6 +24,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.Location;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -36,31 +37,30 @@ public class PlayerLogListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerDeath(PlayerDeathEvent event) {
-        if (ActionType.DEATH.shouldSkipLog(event.getEntity().getWorld().getName(), event.getEntity().getType().name()))
-            return;
-
+        if (ActionType.DEATH.shouldSkipLog(event.getEntity().getWorld().getName(), event.getEntity().getType().name())) return;
         Player player = event.getEntity();
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
-
         DeathCause cause = DeathCause.getById(getCause(player));
-        List<ItemStack> drops = new LinkedList<>(event.getDrops());
-
-        plugin.getExecutor().execute(() -> {
-            Map<Long, Integer> items = new HashMap<>();
-            for (ItemStack item : drops) {
-                if (item == null || item.getType().equals(Material.AIR)) continue;
-
-                ItemReference itemReference = plugin.getItemsManager().getItemReference(item);
-                items.put(itemReference.getTemplateId(), items.getOrDefault(itemReference.getTemplateId(), 0) + item.getAmount());
-            }
-
-            PlayerDeathEntry deathEntry = new PlayerDeathEntry(playerProtect.getPlayerId(), player.getLocation(), cause.getId(), items);
-
-            LoggerCache.addLog(deathEntry);
-            PlayerCache.checkPattern(deathEntry);
-        });
+        List<ItemStack> drops = new java.util.LinkedList<>();
+        for (ItemStack item : event.getDrops()) if (item != null) drops.add(item.clone());
+        Location location = player.getLocation();
+        plugin.getExecutor().execute(() -> processDeath(drops, playerProtect, location, cause));
     }
+
+    private void processDeath(List<ItemStack> drops, PlayerProtect playerProtect,
+                                  Location location, DeathCause cause) {
+        Map<Long, Integer> items = new HashMap<>();
+        for (ItemStack item : drops) {
+            if (item == null || item.getType().equals(Material.AIR)) continue;
+            ItemReference itemReference = plugin.getItemsManager().getItemReference(item);
+            items.put(itemReference.getTemplateId(), items.getOrDefault(itemReference.getTemplateId(), 0) + item.getAmount());
+        }
+        PlayerDeathEntry deathEntry = new PlayerDeathEntry(playerProtect.getPlayerId(), location, cause.getId(), items);
+        LoggerCache.addLog(deathEntry);
+        PlayerCache.checkPattern(deathEntry);
+    }
+
 
     @EventHandler
     public void onLaunchProjectile(ProjectileLaunchEvent event) {

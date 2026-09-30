@@ -36,88 +36,14 @@ public class RestoreRepositorySQL implements RestoreRepository {
     @Override
     public CompletableFuture<CallbackLookup<Map<LocationCache, Set<LogEntry>>, Long>> getRestoreActions(@NonNull DatabaseFilters filters, int skip, int limit) {
         return CompletableFuture.supplyAsync(() -> {
-            TimeArg timeArg = filters.getTimeFilter();
-            RadiusArg radiusArg = filters.getRadiusFilter();
-            List<Integer> actionTypes = filters.getActionTypesFilter();
-
-            List<ActionType> actionTypeObjects = actionTypes != null ?
-                actionTypes.stream()
-                    .map(ActionType::getById)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList()) :
-                new ArrayList<>();
-
-            List<LogEntry> cachedLogs = new ArrayList<>();
-            if (!filters.isIgnoreCache() && !actionTypeObjects.isEmpty()) {
-                cachedLogs = LoggerCache.getLogs(timeArg, radiusArg, actionTypeObjects, skip, limit)
-                    .stream()
-                    .sorted(Comparator.comparingLong(LogEntry::getCreatedAt).reversed())
-                    .collect(Collectors.toList());
-            }
-
-            Map<LocationCache, Set<LogEntry>> groupedResults = cachedLogs.stream()
-                .collect(Collectors.groupingBy(
-                    LocationCache::of,
-                    LinkedHashMap::new,
-                    Collectors.toCollection(LinkedHashSet::new)
-                ));
-
-            int remaining = limit - cachedLogs.size();
-
-            if (remaining > 0) {
-                int dbSkip = skip + cachedLogs.size();
-
-                CallbackLookup<Map<LocationCache, Set<LogEntry>>, Long> dbLookup = queryLogsFromDB(filters, dbSkip, remaining);
-
-                List<LogEntry> finalCachedLogs = cachedLogs;
-                List<LogEntry> dbLogs = dbLookup.getLogs().values().stream()
-                    .flatMap(Set::stream)
-                    .filter(log -> finalCachedLogs.stream().noneMatch(c -> c.equals(log)))
-                    .sorted(Comparator.comparingLong(LogEntry::getCreatedAt).reversed())
-                    .limit(remaining)
-                    .collect(Collectors.toList());
-
-                Map<LocationCache, Set<LogEntry>> dbGrouped = dbLogs.stream()
-                    .collect(Collectors.groupingBy(
-                        LocationCache::of,
-                        LinkedHashMap::new,
-                        Collectors.toCollection(LinkedHashSet::new)
-                    ));
-
-                dbGrouped.forEach((location, logs) ->
-                    groupedResults.merge(location, logs, (existing, newLogs) -> {
-                        existing.addAll(newLogs);
-                        return existing;
-                    })
-                );
-
-                return new CallbackLookup<>(groupedResults, dbLookup.getTotal());
-            }
-
-            return new CallbackLookup<>(groupedResults, (long) skip + cachedLogs.size());
+            return queryLogsFromDB(filters, skip, limit);
         }, stellarProtect.getLookupExecutor());
     }
 
     public CompletableFuture<Long> countRestoreActions(@NonNull DatabaseFilters filters) {
         return CompletableFuture.supplyAsync(() -> {
-            TimeArg timeArg = filters.getTimeFilter();
-            RadiusArg radiusArg = filters.getRadiusFilter();
-            List<Integer> actionTypes = filters.getActionTypesFilter();
-
-            List<ActionType> actionTypeObjects = actionTypes != null ?
-                actionTypes.stream()
-                    .map(ActionType::getById)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList()) :
-                new ArrayList<>();
-
-            long cachedCount = 0;
-            if (!filters.isIgnoreCache() && !actionTypeObjects.isEmpty()) {
-                cachedCount = LoggerCache.countLogs(timeArg, radiusArg, actionTypeObjects);
-            }
-            long dbCount = countLogsFromDB(filters);
-
-            return cachedCount + dbCount;
+            stellarProtect.getProtectDatabase().flushLogsSync();
+                        return countLogsFromDB(filters);
         }, stellarProtect.getLookupExecutor());
     }
 
@@ -255,14 +181,17 @@ public class RestoreRepositorySQL implements RestoreRepository {
             this.tablesPlayers = tablesPlayers;
         }
 
-        public QueryBuilder addTimeFilter(TimeArg timeArg) {
+        private QueryBuilder addTimeFilter(TimeArg timeArg) {
             if (timeArg != null) {
-                whereConditions.add("ple.created_at BETWEEN ? AND ?");
+                whereConditions.add("((ple.created_at BETWEEN ? AND ?) OR (ple.created_at BETWEEN ? AND ?))");
                 parameters.add(timeArg.getStart());
                 parameters.add(timeArg.getEnd());
+                parameters.add(timeArg.getStart() / 1000L);
+                parameters.add(timeArg.getEnd() / 1000L);
             }
             return this;
         }
+
 
         public QueryBuilder addRadiusFilter(RadiusArg radiusArg) {
             if (radiusArg != null) {

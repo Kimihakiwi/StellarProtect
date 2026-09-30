@@ -43,7 +43,7 @@ public class LogEntry {
         this.y = resultSet.getDouble("y");
         this.z = resultSet.getDouble("z");
         this.actionType = resultSet.getInt("action_type");
-        this.createdAt = resultSet.getLong("created_at");
+        this.createdAt = normalizeCreatedAt(resultSet.getLong("created_at"));
         this.restored = resultSet.getByte("restored");
         try { this.blockId = readNullableInt(resultSet, "block_id"); } catch (Exception ignored) {}
         try { this.oldBlockId = readNullableInt(resultSet, "old_block_id"); } catch (Exception ignored) {}
@@ -157,6 +157,11 @@ public class LogEntry {
     @Override
     public int hashCode() {
         return Objects.hash(playerId, worldId, x, y, z, actionType, createdAt);
+    }
+
+
+    private static long normalizeCreatedAt(long value) {
+        return value > 0L && value < 100_000_000_000L ? value * 1000L : value;
     }
 
 }

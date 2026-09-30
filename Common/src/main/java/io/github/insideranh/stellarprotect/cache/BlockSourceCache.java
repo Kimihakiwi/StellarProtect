@@ -73,17 +73,11 @@ public class BlockSourceCache {
     }
 
     private CacheEntry put(LocationCache sourceKey, long playerId, int x, int y, int z, int worldId) {
-        long now = System.currentTimeMillis();
-
-        if (now - lastCleanupTime > CLEANUP_INTERVAL_MILLIS) {
-            cleanupExpired();
-            lastCleanupTime = now;
-        }
-
         CacheEntry entry = new CacheEntry(playerId, x, y, z, worldId);
         cache.put(sourceKey, entry);
         return entry;
     }
+
 
     private CacheEntry get(LocationCache sourceKey) {
         CacheEntry entry = cache.get(sourceKey);

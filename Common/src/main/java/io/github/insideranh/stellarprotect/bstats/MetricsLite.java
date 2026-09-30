@@ -84,7 +84,7 @@ public class MetricsLite {
                 enabled,
                 this::appendPlatformData,
                 this::appendServiceData,
-                submitDataTask -> StellarProtect.getInstance().getStellarTaskHook(submitDataTask).runTask(),
+                submitDataTask -> StellarProtect.getInstance().getStellarTaskHook(submitDataTask).runGlobal(),
                 plugin::isEnabled,
                 (message, error) -> this.plugin.getLogger().log(Level.WARNING, message, error),
                 (message) -> this.plugin.getLogger().log(Level.INFO, message),

@@ -52,4 +52,14 @@ public class CacheManager {
         plugin.getProtectDatabase().save(LoggerCache.getFlushLogsToDatabase(actionCategory));
     }
 
+
+    public void shutdown() {
+        TaskCanceller[] tasks = {
+            saveTask, deleteOldTask, saveItemTask, blockSaveTask, queueProcessTask
+        };
+        for (TaskCanceller task : tasks) {
+            if (task != null) task.cancel();
+        }
+    }
+
 }

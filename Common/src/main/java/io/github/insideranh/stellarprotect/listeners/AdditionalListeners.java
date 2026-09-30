@@ -7,6 +7,7 @@ import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import io.github.insideranh.stellarprotect.utils.PlayerUtils;
+import io.github.insideranh.stellarprotect.database.entries.world.BrewingLogEntry;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -17,6 +18,7 @@ import org.bukkit.event.block.BlockDispenseEvent;
 import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.SmithItemEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.BrewerInventory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -57,13 +59,16 @@ public class AdditionalListeners implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBrew(BrewEvent event) {
-        ItemStack ingredient = event.getContents().getIngredient();
-        ItemStack fuel = null;
-        if (event.getContents().getFuel() != null) {
-            fuel = event.getContents().getFuel();
+        if (!plugin.getConfigManager().isLiquidTracking()) return;
+        BrewerInventory inventory = event.getContents();
+        ItemStack ingredient = inventory.getIngredient();
+        ItemStack fuel = inventory.getFuel();
+        for (ItemStack result : event.getResults()) {
+            if (result == null || result.getType() == Material.AIR) continue;
+            LoggerCache.addLog(new BrewingLogEntry(event.getBlock().getLocation(), ingredient, fuel, result));
         }
-        plugin.getEventLogicHandler().onBrewEvent(ingredient, fuel, event.getResults());
     }
+
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityExplode(org.bukkit.event.entity.EntityExplodeEvent event) {

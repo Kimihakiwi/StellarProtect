@@ -10,6 +10,7 @@ import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.data.RestoreSession;
 import io.github.insideranh.stellarprotect.database.entries.LogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
+import io.github.insideranh.stellarprotect.utils.WorldUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +38,7 @@ public class RestoreArgument extends StellarArgument {
         RadiusArg radiusArg = ArgumentsParser.parseRadiusOrNull(player, arguments, player.getLocation());
 
         if (radiusArg == null) {
-            radiusArg = new RadiusArg(player.getLocation(), 10, -1);
+            radiusArg = new RadiusArg(player.getLocation(), 10, WorldUtils.searchWorldId(player.getWorld().getName()));
             plugin.getLangManager().sendMessage(player, "messages.specifyRadius");
         }
 
