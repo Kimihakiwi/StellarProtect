@@ -351,12 +351,72 @@ public class StellarProtect extends JavaPlugin {
     }
 
     private String resolveClosestNms(MinecraftVersion v) {
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_8)) return "v1_8_R3";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_9)) return "v1_9_R4";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_12)) return "v1_12_R2";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_13)) return "v1_13_R2";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_16)) return "v1_16_R5";
-        return "v26_1_R2";
+        switch (v) {
+            case v1_8:
+                return "v1_8_R3";
+            case v1_9:
+                return "v1_9_R4";
+            case v1_10:
+            case v1_11:
+            case v1_12:
+                return "v1_12_R2";
+            case v1_13:
+                return "v1_13_R2";
+            case v1_14:
+            case v1_15:
+            case v1_16:
+                return "v1_16_R5";
+            case v1_17:
+                return "v1_17_R1";
+            case v1_18_R1:
+            case v1_18_R2:
+                return "v1_18_R2";
+            case v1_19_R1:
+            case v1_19_R2:
+            case v1_19_R3:
+                return "v1_19_R4";
+            case v1_20:
+            case v1_20_R1:
+                return "v1_20_R1";
+            case v1_20_R2:
+                return "v1_20_R2";
+            case v1_20_R3:
+                return "v1_20_R3";
+            case v1_20_R4:
+                return "v1_20_R4";
+            case v1_21:
+                return "v1_21";
+            case v1_21_R1:
+                return "v1_21_R1";
+            case v1_21_R2:
+                return "v1_21_R2";
+            case v1_21_R3:
+                return "v1_21_R3";
+            case v1_21_R4:
+                return "v1_21_R4";
+            case v1_21_R5:
+                return "v1_21_R5";
+            case v1_21_R6:
+                return "v1_21_R6";
+            case v1_21_R7:
+                return "v1_21_R7";
+            case v1_21_R8:
+                return "v1_21_R8";
+            case v1_21_R9:
+                return "v1_21_R9";
+            case v1_21_R10:
+                return "v1_21_R10";
+            case v1_21_R11:
+                return "v1_21_R11";
+            case v26_1:
+            case v26_1_R1:
+                return "v26_1_R1";
+            case v26_1_R2:
+                return "v26_1_R2";
+            case v1_22:
+            default:
+                return "v26_1_R2";
+        }
     }
 
     @SneakyThrows
