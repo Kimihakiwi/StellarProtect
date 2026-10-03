@@ -1,9 +1,7 @@
 package io.github.insideranh.stellarprotect.nms.v26_1_R2.listeners;
 
 import io.github.insideranh.stellarprotect.api.events.EventLogicHandler;
-import org.bukkit.Raid;
 import org.bukkit.block.BlockState;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -53,23 +51,24 @@ public class BlockListener_v26_1_R2 implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidTriggerEvent event) {
-        Player player = event.getPlayer();
+        this.eventLogicHandler.onRaidTrigger(event.getPlayer(), event.getRaid());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidStopEvent event) {
-        Raid raid = event.getRaid();
-
+        if (event.getReason() != RaidStopEvent.Reason.FINISHED) {
+            this.eventLogicHandler.onRaidFinish(event.getRaid());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidSpawnWaveEvent event) {
-        Raid raid = event.getRaid();
+        this.eventLogicHandler.onRaidSpawn(event.getRaid());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidFinishEvent event) {
-        Raid raid = event.getRaid();
+        this.eventLogicHandler.onRaidFinish(event.getRaid());
     }
 
     @EventHandler

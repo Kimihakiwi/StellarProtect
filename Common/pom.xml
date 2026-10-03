@@ -21,9 +21,7 @@
         <repository>
             <id>enginehub-repo</id>
             <url>https://maven.enginehub.org/repo/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
+            <releases><enabled>true</enabled></releases>
         </repository>
         <repository>
             <id>alessiodp-repo</id>
@@ -49,10 +47,6 @@
             <id>maven_central</id>
             <name>Maven Central</name>
             <url>https://repo.maven.apache.org/maven2/</url>
-        </repository>
-        <repository>
-            <id>matteodev</id>
-            <url>https://maven.devs.beer/</url>
         </repository>
         <repository>
             <id>sonatype</id>
@@ -100,12 +94,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
-            <groupId>dev.lone</groupId>
-            <artifactId>api-itemsadder</artifactId>
-            <version>4.0.10</version>
+            <groupId>beer.devs</groupId>
+            <artifactId>itemsadder-api</artifactId>
+            <version>4.0.17</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>net.byteflux</groupId>
             <artifactId>libby-bukkit</artifactId>
@@ -153,168 +149,35 @@
             <version>5.1.0</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>API</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_8_R3</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_9_R4</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_12_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_13_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_16_R5</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_17_R1</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_18_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_19_R4</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_20_R1</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_20_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_20_R3</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_20_R4</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R1</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R3</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R4</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R5</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R6</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R7</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R8</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R9</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R10</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v1_21_R11</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v26_1_R1</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v26_1_R2</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
+
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>API</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_8_R3</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_9_R4</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_12_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_13_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_16_R5</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_17_R1</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_18_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_19_R4</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_20_R1</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_20_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_20_R3</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_20_R4</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R1</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R3</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R4</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R5</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R6</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R7</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R8</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R9</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R10</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v1_21_R11</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v26_1_R1</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+        <dependency><groupId>io.github.insideranh.stellarprotect</groupId><artifactId>v26_1_R2</artifactId><version>1.0.0</version><scope>compile</scope></dependency>
+
         <dependency>
             <groupId>dev.folia</groupId>
             <artifactId>folia-api</artifactId>
@@ -328,5 +191,4 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
 </project>

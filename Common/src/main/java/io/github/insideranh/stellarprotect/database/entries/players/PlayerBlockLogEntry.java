@@ -64,7 +64,9 @@ public class PlayerBlockLogEntry extends LogEntry {
         setBlockId(this.blockId);
         setOldBlockId(this.oldBlockId);
         captureNbt(oldBlockState, newBlockState);
-            this.oldBlockData = oldBlockState.getBlockData().getAsString();
+            this.oldBlockData = StellarProtect.getInstance()
+                .getProtectNMS()
+                .getBlockData(oldBlockState);
     }
 
     public PlayerBlockLogEntry(long playerId, BlockState blockState, ActionType actionType) {

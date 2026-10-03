@@ -1,22 +1,22 @@
-package io.github.insideranh.stellarprotect.nms.v1_21_R8;
+package io.github.insideranh.stellarprotect.nms.v1_19_R4;
 
 import io.github.insideranh.stellarprotect.restore.BlockRestore;
 
-public class BlockRestore_v1_21_R8 extends BlockRestore {
+public class BlockRestore_v1_19_R4 extends BlockRestore {
 
-    public BlockRestore_v1_21_R8(String data) {
+    public BlockRestore_v1_19_R4(String data) {
         super(data);
     }
 
-    public BlockRestore_v1_21_R8(String data, byte extraType, String extraData) {
+    public BlockRestore_v1_19_R4(String data, byte extraType, String extraData) {
         super(data, extraType, extraData);
     }
 
-    public BlockRestore_v1_21_R8(String data, byte extraType, String extraData, boolean isPlace) {
+    public BlockRestore_v1_19_R4(String data, byte extraType, String extraData, boolean isPlace) {
         super(data, extraType, extraData, isPlace);
     }
 
-    public BlockRestore_v1_21_R8(
+    public BlockRestore_v1_19_R4(
             String data,
             byte extraType,
             String extraData,

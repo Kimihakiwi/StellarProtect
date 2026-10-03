@@ -151,7 +151,7 @@ public class ArgumentsParser {
             String value;
             if (lower.startsWith("t:")) value = lower.substring(2);
             else if (lower.startsWith("time:")) value = lower.substring(5);
-            else if (lower.matches("[0-9]+(?:\.[0-9]+)?(?:mo|[ywdhms])(?:-[0-9]+(?:\.[0-9]+)?(?:mo|[ywdhms]))?")) value = lower;
+            else if (lower.matches("[0-9]+(?:\\.[0-9]+)?(?:mo|[ywdhms])(?:-[0-9]+(?:\\.[0-9]+)?(?:mo|[ywdhms]))?")) value = lower;
             else continue;
             value = value.replace(",", "");
             if (value.isEmpty()) continue;
@@ -168,7 +168,7 @@ public class ArgumentsParser {
     }
 
     private static long parseDurationSeconds(String value) {
-        if (value != null && value.matches("[0-9]+(?:\.[0-9]+)?")) return (long) (Double.parseDouble(value) * 60.0D);
+        if (value != null && value.matches("[0-9]+(?:\\.[0-9]+)?")) return (long) (Double.parseDouble(value) * 60.0D);
         return parseEnhancedDuration(value);
     }
 

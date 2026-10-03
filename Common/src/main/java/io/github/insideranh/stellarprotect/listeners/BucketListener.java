@@ -3,21 +3,18 @@ package io.github.insideranh.stellarprotect.listeners;
 import io.github.insideranh.stellarprotect.StellarProtect;
 import io.github.insideranh.stellarprotect.cache.BlockSourceCache;
 import io.github.insideranh.stellarprotect.cache.LoggerCache;
-import io.github.insideranh.stellarprotect.callback.CallbackBucket;
 import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Waterlogged;
 
 public class BucketListener implements Listener {
 
@@ -34,7 +31,6 @@ public class BucketListener implements Listener {
         scheduleBucket(playerProtect, target, oldState, ActionType.BUCKET_EMPTY);
     }
 
-
     @EventHandler
     public void onBucketFill(PlayerBucketFillEvent event) {
         Player player = event.getPlayer();
@@ -46,17 +42,25 @@ public class BucketListener implements Listener {
         scheduleBucket(playerProtect, target, oldState, ActionType.BUCKET_FILL);
     }
 
-
-
     private Block getBucketTarget(Block clicked, BlockFace face, Material bucket, boolean empty) {
-        BlockData data = clicked.getBlockData();
-        if (data instanceof Waterlogged) {
-            Waterlogged waterlogged = (Waterlogged) data;
-            if (empty && bucket == Material.WATER_BUCKET && !waterlogged.isWaterlogged()) return clicked;
-            if (!empty && waterlogged.isWaterlogged()) return clicked;
+        Boolean waterlogged = getWaterloggedState(clicked);
+        if (waterlogged != null) {
+            if (empty && bucket == Material.WATER_BUCKET && !waterlogged) return clicked;
+            if (!empty && waterlogged) return clicked;
         }
         if (empty) return plugin.getProtectNMS().getBucketData(clicked, face, bucket).getBlock();
         return clicked.getRelative(face);
+    }
+
+    private Boolean getWaterloggedState(Block block) {
+        try {
+            Object blockData = block.getClass().getMethod("getBlockData").invoke(block);
+            Class<?> waterloggedClass = Class.forName("org.bukkit.block.data.Waterlogged");
+            if (!waterloggedClass.isInstance(blockData)) return null;
+            return (Boolean) waterloggedClass.getMethod("isWaterlogged").invoke(blockData);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     private void scheduleBucket(PlayerProtect playerProtect, Block block, BlockState oldState, ActionType action) {
@@ -65,7 +69,9 @@ public class BucketListener implements Listener {
 
     private void finishBucket(PlayerProtect playerProtect, Block block, BlockState oldState, ActionType action) {
         BlockState newState = block.getState();
-        if (oldState.getBlockData().getAsString().equals(newState.getBlockData().getAsString())) return;
+        String oldData = plugin.getProtectNMS().getBlockData(oldState);
+        String newData = plugin.getProtectNMS().getBlockData(newState);
+        if (oldData.equals(newData)) return;
         if (action == ActionType.BUCKET_EMPTY) BlockSourceCache.registerBlockSource(block.getLocation(), playerProtect.getPlayerId());
         else BlockSourceCache.removeBlockSource(block.getLocation());
         LoggerCache.addLog(new PlayerBlockLogEntry(playerProtect.getPlayerId(), oldState, newState, action));

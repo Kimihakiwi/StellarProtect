@@ -9,6 +9,7 @@ softdepend:
   - Nexo
   - ItemsAdder
   - XPlayerKits
+  - TreeCuter
   - Vault
   - WorldEdit
   - FastAsyncWorldEdit

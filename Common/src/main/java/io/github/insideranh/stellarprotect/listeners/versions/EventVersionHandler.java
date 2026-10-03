@@ -7,12 +7,11 @@ import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockStateLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerItemLogEntry;
-import io.github.insideranh.stellarprotect.database.entries.world.BrewingLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.world.RaidLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import io.github.insideranh.stellarprotect.items.ItemReference;
 import io.github.insideranh.stellarprotect.utils.PlayerUtils;
-import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Raid;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -30,7 +29,7 @@ public class EventVersionHandler implements EventLogicHandler {
     @Override
     public void onPortalCreate(List<Block> blocks) {
         for (Block block : blocks) {
-            if (ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name())) return;
+            if (ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name())) continue;
             LoggerCache.addLog(new PlayerBlockLogEntry(PlayerUtils.getEntityByDirectId("=portal"), block, ActionType.BLOCK_PLACE));
         }
     }
@@ -38,7 +37,17 @@ public class EventVersionHandler implements EventLogicHandler {
     @Override
     public void onSmithEvent(HumanEntity humanEntity, ItemStack result) {
         if (!(humanEntity instanceof Player)) return;
+        if (result == null || result.getType() == Material.AIR) return;
         Player player = (Player) humanEntity;
+        plugin.getProtectNMS().sendActionTitle(player,
+            plugin.getLangManager().get("messages.smith.upgrade"),
+            plugin.getLangManager().get("messages.tooltips.smith"),
+            "/sp view smith " + player.getLocation().getBlockX() + "," + player.getLocation().getBlockY() + "," + player.getLocation().getBlockZ(),
+            text -> text
+                .replace("<time>", "now")
+                .replace("<player>", player.getName())
+                .replace("<data>", result.getType().name())
+        );
         if (ActionType.SMITH.shouldSkipLog(player.getWorld().getName(), result.getType().name())) return;
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
@@ -46,10 +55,9 @@ public class EventVersionHandler implements EventLogicHandler {
         LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), itemReference, player.getLocation(), ActionType.SMITH));
     }
 
-    public void onBrewEvent(ItemStack ingredient, ItemStack fuel,
-                            List<ItemStack> results) {
+    @Override
+    public void onBrewEvent(ItemStack ingredient, ItemStack fuel, List<ItemStack> results) {
     }
-
 
     @Override
     public void onTotemEvent(Entity entity, String hand) {
@@ -109,7 +117,7 @@ public class EventVersionHandler implements EventLogicHandler {
     @Override
     public void onRaidTrigger(Player player, Raid raid) {
         if (player == null || raid == null) return;
-        long playerId = io.github.insideranh.stellarprotect.utils.PlayerUtils.getPlayerOrEntityId(player.getName());
+        long playerId = PlayerUtils.getPlayerOrEntityId(player.getName());
         LoggerCache.addLog(new RaidLogEntry(playerId, raid.getLocation(), RaidLogEntry.RaidPhase.TRIGGER));
     }
 

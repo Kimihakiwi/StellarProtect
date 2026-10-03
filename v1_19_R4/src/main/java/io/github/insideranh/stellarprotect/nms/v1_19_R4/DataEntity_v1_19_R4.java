@@ -15,22 +15,22 @@ import org.bukkit.util.EulerAngle;
 
 import java.util.*;
 
-public class DataEntity_v1_19_R3 implements DataEntity {
+public class DataEntity_v1_19_R4 implements DataEntity {
 
     private final HashMap<String, Object> data = new HashMap<>();
     private ItemStack[] armor;
     private ItemStack mainHand;
     private ItemStack offHand;
 
-    public DataEntity_v1_19_R3(Entity entity) {
+    public DataEntity_v1_19_R4(Entity entity) {
         readEntityData(entity);
     }
 
-    public DataEntity_v1_19_R3(HashMap<String, Object> data) {
+    public DataEntity_v1_19_R4(HashMap<String, Object> data) {
         this.data.putAll(data);
     }
 
-    public DataEntity_v1_19_R3() {
+    public DataEntity_v1_19_R4() {
     }
 
     private void readEntityData(Entity entity) {

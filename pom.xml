@@ -8,6 +8,7 @@
     <artifactId>StellarProtect</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
+
     <modules>
         <module>Common</module>
         <module>API</module>
@@ -45,11 +46,36 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jar.finalName>StellarProtect</jar.finalName>
         <finalName>StellarProtect</finalName>
+
+        <!-- JDK 25 compatible Lombok -->
+        <lombok.version>1.18.42</lombok.version>
     </properties>
 
     <build>
         <finalName>${project.name}</finalName>
+
         <plugins>
+            <!--
+                Apply Lombok annotation processing to every child module.
+                This prevents @Getter/@Setter/@UtilityClass from silently
+                failing when Maven is executed with a recent JDK.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.15.0</version>
+                <configuration>
+                    <proc>full</proc>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -64,6 +90,7 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <finalName>StellarProtect</finalName>
                             <minimizeJar>false</minimizeJar>
+
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -79,6 +106,7 @@
                                     </excludes>
                                 </filter>
                             </filters>
+
                             <relocations>
                                 <relocation>
                                     <pattern>com.cryptomorin.xseries</pattern>
@@ -102,8 +130,7 @@
                                 </relocation>
                                 <relocation>
                                     <pattern>com.cjcrafter.foliascheduler</pattern>
-                                    <shadedPattern>io.github.insideranh.stellarprotect.libs.foliascheduler
-                                    </shadedPattern>
+                                    <shadedPattern>io.github.insideranh.stellarprotect.libs.foliascheduler</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
@@ -111,6 +138,7 @@
                 </executions>
             </plugin>
         </plugins>
+
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
