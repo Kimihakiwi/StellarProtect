@@ -11,3 +11,15 @@ for performance.**
 
 > StellarProtect is an active and growing project — your suggestions, bug reports, and reviews are welcome.  
 > Thank you for supporting **StellarProtect**!
+
+
+
+## Build
+
+Run the following command from the project root directory:
+
+```bash
+mvn clean package -DskipTests
+```
+
+After the build completes, the generated JAR file can be found in the `Common/target/` directory.
