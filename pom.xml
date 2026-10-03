@@ -46,8 +46,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jar.finalName>StellarProtect</jar.finalName>
         <finalName>StellarProtect</finalName>
-
-        <!-- JDK 25 compatible Lombok -->
         <lombok.version>1.18.42</lombok.version>
     </properties>
 
@@ -55,11 +53,6 @@
         <finalName>${project.name}</finalName>
 
         <plugins>
-            <!--
-                Apply Lombok annotation processing to every child module.
-                This prevents @Getter/@Setter/@UtilityClass from silently
-                failing when Maven is executed with a recent JDK.
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
