@@ -40,6 +40,8 @@ This fork is primarily intended for users who require fixes or compatibility cha
 
 **Thank you for using this fork.**
 
+---
+
 ## Build
 
 Run the following command from the project root directory:
