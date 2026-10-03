@@ -32,12 +32,9 @@ public class MySQLConnection implements DatabaseConnection {
             boolean useSSL = stellarProtect.getConfig().getBoolean("databases.mysql.useSSL", false);
             String url = "jdbc:mysql://" + stellarProtect.getConfig().getString("databases.mysql.host") + ":" +
                 stellarProtect.getConfig().getInt("databases.mysql.port") + "/" +
-                stellarProtect.getConfig().getString("databases.mysql.database") +
-                "?autoReconnect=true";
+                stellarProtect.getConfig().getString("databases.mysql.database");
 
             stellarProtect.getLogger().info("Connecting to MySQL database with url: " + url);
-
-            config.setDriverClassName("com.mysql.jdbc.Driver");
 
             config.setJdbcUrl(url);
             config.setUsername(stellarProtect.getConfig().getString("databases.mysql.user"));
@@ -58,9 +55,11 @@ public class MySQLConnection implements DatabaseConnection {
             config.addDataSourceProperty("useUnicode", "true");
             config.addDataSourceProperty("useSSL", useSSL);
             config.addDataSourceProperty("tcpKeepAlive", true);
-            config.setMaxLifetime(Long.MAX_VALUE);
-            config.setMinimumIdle(0);
-            config.setIdleTimeout(30000L);
+            config.setMaxLifetime(1800000L);
+            config.setKeepaliveTime(300000L);
+            config.setValidationTimeout(5000L);
+            config.setMinimumIdle(1);
+            config.setIdleTimeout(600000L);
             config.setConnectionTimeout(10000L);
             config.setMaximumPoolSize(10);
 

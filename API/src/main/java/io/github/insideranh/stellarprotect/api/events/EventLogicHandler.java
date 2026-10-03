@@ -14,8 +14,6 @@ public interface EventLogicHandler {
 
     void onSmithEvent(HumanEntity player, ItemStack result);
 
-    void onBrewEvent(ItemStack ingredient, ItemStack fuel, List<ItemStack> results);
-
     void onTotemEvent(Entity entity, String hand);
 
     void onMount(Entity mount, Entity entity);

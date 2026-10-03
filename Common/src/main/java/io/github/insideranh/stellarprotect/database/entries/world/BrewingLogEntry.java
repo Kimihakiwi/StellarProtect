@@ -39,7 +39,7 @@ public class BrewingLogEntry extends LogEntry {
         long ingId = -1L;
         long fId = -1L;
         long rId = -1L;
-        if (ingredient != null && ingredient.getType().name().equals("AIR")) {
+        if (ingredient != null && !ingredient.getType().name().equals("AIR")) {
             ItemReference ing = StellarProtect.getInstance().getItemsManager().getItemReference(ingredient);
             ingId = ing.getTemplateId();
         }

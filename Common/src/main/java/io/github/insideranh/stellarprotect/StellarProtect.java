@@ -342,11 +342,12 @@ public class StellarProtect extends JavaPlugin {
 
         getLogger().info("Loaded " + completer + " NMS.");
 
+        String listenerCompleter = resolveListenerNms(localVersion, resolved);
         try {
-            Listener listener = Class.forName("io.github.insideranh.stellarprotect.nms." + completer + ".listeners.BlockListener_" + completer).asSubclass(Listener.class).getConstructor(EventLogicHandler.class).newInstance(this.eventLogicHandler);
+            Listener listener = Class.forName("io.github.insideranh.stellarprotect.nms." + listenerCompleter + ".listeners.BlockListener_" + listenerCompleter).asSubclass(Listener.class).getConstructor(EventLogicHandler.class).newInstance(this.eventLogicHandler);
             getServer().getPluginManager().registerEvents(listener, this);
-        } catch (ClassNotFoundException ex) {
-            getLogger().warning("BlockListener_" + completer + " not found; using no-op.");
+        } catch (ReflectiveOperationException | LinkageError ex) {
+            getLogger().warning("BlockListener_" + listenerCompleter + " not found; using no-op.");
         }
     }
 
@@ -419,6 +420,18 @@ public class StellarProtect extends JavaPlugin {
         }
     }
 
+    private String resolveListenerNms(MinecraftVersion v, String resolved) {
+        switch (v) {
+            case v1_10:
+                return "v1_9_R4";
+            case v1_14:
+            case v1_15:
+                return "v1_13_R2";
+            default:
+                return resolved;
+        }
+    }
+
     @SneakyThrows
     public BlockRestore getBlockRestore(String data) {
         String[] fallbacks = {completer, "v26_1_R2", "v1_21_R11", "v1_17_R1"};
@@ -467,16 +480,11 @@ public class StellarProtect extends JavaPlugin {
             } catch (ClassNotFoundException | NoSuchMethodException ignored) {
             }
         }
-        try {
-            return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
-                final org.bukkit.block.data.BlockData bd = block.getBlockData();
-                final String s = bd.getAsString();
-                @Override public String getBlockDataString() { return s; }
-                @Override public String getTypeMaterial() { return block.getType().name(); }
-            };
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        final String s = getProtectNMS().getBlockData(block);
+        return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
+            @Override public String getBlockDataString() { return s; }
+            @Override public String getTypeMaterial() { return block.getType().name(); }
+        };
     }
 
     @SneakyThrows
@@ -501,7 +509,8 @@ public class StellarProtect extends JavaPlugin {
             }
         }
         final String s = blockDataString;
-        final String mat = blockDataString.contains(":") ? blockDataString.substring(0, blockDataString.indexOf("[")) : blockDataString;
+        int bracket = blockDataString.indexOf('[');
+        final String mat = bracket >= 0 ? blockDataString.substring(0, bracket) : blockDataString;
         return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
             @Override public String getBlockDataString() { return s; }
             @Override public String getTypeMaterial() { return mat; }
@@ -529,7 +538,7 @@ public class StellarProtect extends JavaPlugin {
                 data.put("SILENT", entity.isSilent());
             }
             @Override public java.util.HashMap<String, Object> getData() { return data; }
-            @Override public void applyToEntity(Entity e) { /* no-op fallback */ }
+            @Override public void applyToEntity(Entity e) { }
         };
     }
 
@@ -545,7 +554,7 @@ public class StellarProtect extends JavaPlugin {
         final java.util.HashMap<String, Object> data = new java.util.HashMap<>(map);
         return new io.github.insideranh.stellarprotect.entities.DataEntity() {
             @Override public java.util.HashMap<String, Object> getData() { return data; }
-            @Override public void applyToEntity(Entity e) { /* no-op fallback */ }
+            @Override public void applyToEntity(Entity e) { }
         };
     }
 

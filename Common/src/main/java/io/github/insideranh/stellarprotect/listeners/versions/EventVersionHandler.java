@@ -56,10 +56,6 @@ public class EventVersionHandler implements EventLogicHandler {
     }
 
     @Override
-    public void onBrewEvent(ItemStack ingredient, ItemStack fuel, List<ItemStack> results) {
-    }
-
-    @Override
     public void onTotemEvent(Entity entity, String hand) {
         if (ActionType.TOTEM.shouldSkipLog(entity.getWorld().getName(), entity.getType().name())) return;
         long longId = PlayerUtils.getPlayerOrEntityId(entity.getType().name());
