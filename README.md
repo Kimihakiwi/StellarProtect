@@ -12,16 +12,33 @@ for performance.**
 > StellarProtect is an active and growing project — your suggestions, bug reports, and reviews are welcome.  
 > Thank you for supporting **StellarProtect**!
 
-This version is an unofficial fork based on the official version of the plugin.
+# Unofficial Fork Notice
 
-If you encounter any bugs or issues while using this fork, please contact me directly instead of the original developer.
-I will continue to provide bug fixes and compatibility improvements where possible.
+> **This project is an unofficial fork of the original plugin.**
 
-If a future official update resolves the issues currently fixed by this fork, further updates and maintenance of the fork may be discontinued.
+This fork is based on the official version of the plugin and includes additional **bug fixes, compatibility improvements, and maintenance changes** where necessary.
 
-Whenever possible, using the latest official version is recommended.
+### Bug Reports & Support
 
-Thank you.
+If you encounter any bugs or issues while using **this fork**, please report them **here or contact me directly** rather than contacting the original developer.
+
+Issues specific to this fork may be caused by changes that are not part of the official plugin.
+
+### Maintenance Policy
+
+I will continue to provide bug fixes and compatibility improvements whenever possible.
+
+However, if a future official release resolves the issues currently addressed by this fork, **further development and maintenance of this fork may be discontinued.**
+
+### Recommendation
+
+Whenever possible, using the **latest official version** of the plugin is recommended.
+
+This fork is primarily intended for users who require fixes or compatibility changes that are not yet available in the official release.
+
+---
+
+**Thank you for using this fork.**
 
 ## Build
 
