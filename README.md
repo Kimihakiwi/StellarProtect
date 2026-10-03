@@ -12,7 +12,16 @@ for performance.**
 > StellarProtect is an active and growing project — your suggestions, bug reports, and reviews are welcome.  
 > Thank you for supporting **StellarProtect**!
 
+This version is an unofficial fork based on the official version of the plugin.
 
+If you encounter any bugs or issues while using this fork, please contact me directly instead of the original developer.
+I will continue to provide bug fixes and compatibility improvements where possible.
+
+If a future official update resolves the issues currently fixed by this fork, further updates and maintenance of the fork may be discontinued.
+
+Whenever possible, using the latest official version is recommended.
+
+Thank you.
 
 ## Build
 
