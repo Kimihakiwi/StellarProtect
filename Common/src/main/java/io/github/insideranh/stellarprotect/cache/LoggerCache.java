@@ -840,7 +840,6 @@ public class LoggerCache {
     }
 
     @Getter
-    @Getter
     private static class CachedCount {
 
         private final long count;
@@ -853,6 +852,7 @@ public class LoggerCache {
 
     }
 
+    @Getter
     private static class CachedQuery {
 
         private final List<LogEntry> logs;
