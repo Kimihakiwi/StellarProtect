@@ -13,6 +13,7 @@ import io.github.insideranh.stellarprotect.database.entries.LogEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerInventorySnapshotEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerItemLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
+import io.github.insideranh.stellarprotect.items.ItemTemplate;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -79,7 +80,7 @@ public class ItemRestoreArgument extends StellarArgument {
         for (int i = offset; i < end; i++) {
             PlayerItemLogEntry log = logs.get(i);
             try {
-                var template = plugin.getItemsManager().getItemTemplate(log.getItemReferenceId());
+                ItemTemplate template = plugin.getItemsManager().getItemTemplate(log.getItemReferenceId());
                 if (template == null || template.getBukkitItem() == null) continue;
                 ItemStack stack = template.getBukkitItem().clone();
                 stack.setAmount(log.getAmount());
