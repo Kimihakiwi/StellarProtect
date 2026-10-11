@@ -9,8 +9,13 @@ import io.github.insideranh.stellarprotect.utils.Debugger;
 import lombok.Getter;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 @Getter
 public class MySQLConnection implements DatabaseConnection {
@@ -78,7 +83,8 @@ public class MySQLConnection implements DatabaseConnection {
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + playersTable + " (" +
                         "id BIGINT PRIMARY KEY," +
                         "uuid VARCHAR(36) NOT NULL," +
-                        "name VARCHAR(36)" +
+                        "name VARCHAR(36)," +
+                        "realname VARCHAR(36)" +
                         ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + worldsTable + " (" +
@@ -123,6 +129,7 @@ public class MySQLConnection implements DatabaseConnection {
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + itemTemplatesTable + " (" +
                         "id BIGINT PRIMARY KEY," +
                         "base64 TEXT," +
+                        "hash BIGINT," +
                         "s TINYINT," +
                         "access_count INTEGER DEFAULT 0," +
                         "last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
@@ -158,6 +165,7 @@ public class MySQLConnection implements DatabaseConnection {
                     statement.execute("SET SESSION foreign_key_checks = 0");
                     statement.execute("SET SESSION unique_checks = 0");
                 }
+                migrateTables(connection, playersTable, itemTemplatesTable, logEntriesTable);
             }
 
             this.playerRepository = new PlayerRepositoryMySQL(dataSource);
@@ -169,7 +177,9 @@ public class MySQLConnection implements DatabaseConnection {
 
             stellarProtect.getLogger().info("Connected to MySQL database correctly.");
         } catch (Exception exception) {
-            stellarProtect.getLogger().warning("Error on connect to MySQL database. " + exception.getMessage());
+            stellarProtect.getLogger().severe("Error initializing MySQL database: " + exception.getMessage());
+            if (dataSource != null) dataSource.close();
+            throw new IllegalStateException("MySQL database initialization failed", exception);
         }
     }
 
@@ -194,6 +204,12 @@ public class MySQLConnection implements DatabaseConnection {
                 executeIndexSql(stmt, "DROP INDEX idx_item_last_accessed ON " + itemTemplates + ";");
                 executeIndexSql(stmt, "DROP INDEX idx_item_total_used ON " + itemTemplates + ";");
 
+                executeIndexSql(stmt, "CREATE INDEX idx_block_time ON " + logEntries + " (block_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_oldblock_time ON " + logEntries + " (old_block_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_item_time ON " + logEntries + " (item_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_action_time ON " + logEntries + " (action_type, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_entity_time ON " + logEntries + " (entity_type, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_chunk ON " + logEntries + " (world_id, chunk_key, created_at)");
                 executeIndexSql(stmt, "CREATE INDEX idx_location_time_lookup ON " + logEntries + " (created_at DESC, x, y, z, action_type)");
                 executeIndexSql(stmt, "CREATE INDEX idx_player_time ON " + logEntries + " (player_id, created_at)");
                 executeIndexSql(stmt, "CREATE INDEX idx_world_time ON " + logEntries + " (world_id, created_at)");
@@ -205,7 +221,6 @@ public class MySQLConnection implements DatabaseConnection {
             stellarProtect.getLogger().warning("Failed to create indexes: " + e.getMessage());
         }
 
-        updateTables();
     }
 
     @Override
@@ -220,24 +235,61 @@ public class MySQLConnection implements DatabaseConnection {
     }
 
     public void updateTables() {
-        String logEntries = stellarProtect.getConfigManager().getTablesLogEntries();
-        String players = stellarProtect.getConfigManager().getTablesPlayers();
-        String itemTemplates = stellarProtect.getConfigManager().getTablesItemTemplates();
         try (Connection connection = dataSource.getConnection()) {
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("ALTER TABLE " + players + " ADD COLUMN realname VARCHAR(36);");
-            }
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("ALTER TABLE " + itemTemplates + " ADD COLUMN hash BIGINT;");
-            }
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute("ALTER TABLE " + logEntries + " ADD COLUMN restored TINYINT DEFAULT 0;");
-            }
-        } catch (SQLException ex) {
-            Debugger.debugExtras("The realname and hash column already exists, ignoring...");
+            migrateTables(connection, stellarProtect.getConfigManager().getTablesPlayers(),
+                stellarProtect.getConfigManager().getTablesItemTemplates(),
+                stellarProtect.getConfigManager().getTablesLogEntries());
+        } catch (SQLException exception) {
+            throw new IllegalStateException("MySQL schema migration failed", exception);
         }
     }
 
+    private void migrateTables(Connection connection, String players, String itemTemplates, String logEntries) throws SQLException {
+        ensureColumns(connection, players, new String[][]{
+            {"realname", "VARCHAR(36)"}
+        });
+        ensureColumns(connection, itemTemplates, new String[][]{
+            {"hash", "BIGINT"}
+        });
+        ensureColumns(connection, logEntries, new String[][]{
+            {"restored", "TINYINT DEFAULT 0"},
+            {"block_id", "INT DEFAULT NULL"},
+            {"old_block_id", "INT DEFAULT NULL"},
+            {"item_id", "BIGINT DEFAULT NULL"},
+            {"amount", "INT DEFAULT 0"},
+            {"entity_type", "VARCHAR(48) DEFAULT NULL"},
+            {"chunk_key", "BIGINT DEFAULT NULL"}
+        });
+    }
+
+    private void ensureColumns(Connection connection, String table, String[][] columns) throws SQLException {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            Set<String> existing = new HashSet<>();
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("SELECT * FROM " + table + " WHERE 1=0")) {
+                ResultSetMetaData metadata = resultSet.getMetaData();
+                for (int index = 1; index <= metadata.getColumnCount(); index++) {
+                    existing.add(metadata.getColumnName(index).toLowerCase(Locale.ROOT));
+                }
+            }
+
+            StringBuilder additions = new StringBuilder();
+            for (String[] column : columns) {
+                if (existing.contains(column[0].toLowerCase(Locale.ROOT))) continue;
+                if (additions.length() > 0) additions.append(", ");
+                additions.append("ADD COLUMN ").append(column[0]).append(' ').append(column[1]);
+            }
+            if (additions.length() == 0) return;
+
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("ALTER TABLE " + table + " " + additions);
+                stellarProtect.getLogger().info("MySQL table schema updated: " + table);
+                return;
+            } catch (SQLException exception) {
+                if (exception.getErrorCode() != 1060 || attempt == 2) throw exception;
+            }
+        }
+    }
 
     @Override
     public void close() {
