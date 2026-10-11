@@ -11,9 +11,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Scanner;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Getter
 public class UpdateChecker {
+
+    private static final Pattern VERSION_PATTERN = Pattern.compile("^[vV]?(\\d+(?:\\.\\d+)*)(.*)$");
 
     private String version = "none";
     private boolean isNewVersion = false;
@@ -54,18 +59,19 @@ public class UpdateChecker {
             } else if (numericComparison < 0) {
                 return true;
             } else {
-                return compareSuffix(currentSuffix, remoteSuffix) < 0;
+                return !currentSuffix.toLowerCase(Locale.ROOT).startsWith("-fork")
+                    && compareSuffix(currentSuffix, remoteSuffix) < 0;
             }
         } catch (Exception e) {
             StellarProtect.getInstance().getLogger().warning("Error comparing versions: " + e.getMessage());
-            return !currentVersion.equals(remoteVersion);
+            return false;
         }
     }
 
     private String[] splitVersionAndSuffix(String version) {
-        String numeric = version.replaceAll("[^0-9.]", "");
-        String suffix = version.replaceAll("[0-9.]", "");
-        return new String[]{numeric, suffix};
+        Matcher matcher = VERSION_PATTERN.matcher(version.trim());
+        if (!matcher.matches()) throw new IllegalArgumentException("Invalid version: " + version);
+        return new String[]{matcher.group(1), matcher.group(2)};
     }
 
     private int compareNumericVersion(String v1, String v2) {
