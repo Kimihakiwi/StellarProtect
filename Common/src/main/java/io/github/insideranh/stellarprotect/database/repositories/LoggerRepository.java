@@ -13,12 +13,28 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Types;
 
 public interface LoggerRepository {
 
     void clearOldLogs();
 
     void save(List<LogEntry> logEntries);
+
+    default void saveSync(List<LogEntry> logEntries) {
+        save(logEntries);
+    }
+
+    default boolean saveQueuedBatch(List<LogEntry> logEntries) {
+        return false;
+    }
+
+    static void setNullableInt(PreparedStatement statement, int index, Integer value) throws SQLException {
+        if (value == null) statement.setNull(index, Types.INTEGER);
+        else statement.setInt(index, value);
+    }
 
     void update(List<LogEntry> logEntries);
 

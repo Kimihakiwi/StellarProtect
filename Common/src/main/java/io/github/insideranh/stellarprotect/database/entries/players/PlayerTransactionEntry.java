@@ -55,6 +55,16 @@ public class PlayerTransactionEntry extends LogEntry {
         setAmount(Math.abs(totalDelta));
     }
 
+    public PlayerTransactionEntry(long playerId, Map<Long, Integer> added, Map<Long, Integer> removed, int worldId, double x, double y, double z, long createdAt) {
+        super(playerId, ActionType.INVENTORY_TRANSACTION.getId(), worldId, x, y, z, createdAt);
+        this.added = new HashMap<>(added);
+        this.removed = new HashMap<>(removed);
+        int delta = 0;
+        for (int amount : added.values()) delta += amount;
+        for (int amount : removed.values()) delta -= amount;
+        setAmount(Math.abs(delta));
+    }
+
     @Override
     public String getDataString() {
         return "added: " + added.toString() + ", removed: " + removed.toString();

@@ -14,5 +14,11 @@ public class QueuedLog {
     private boolean restored;
     private String extraJson;
     private long createdAt;
+    private Integer blockId;
+    private Integer oldBlockId;
+    private Long itemId;
+    private Integer amount;
+    private String entityType;
+    private Long chunkKey;
 
 }

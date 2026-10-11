@@ -14,6 +14,7 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.TileState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
 public class BlockRestore {
@@ -48,30 +49,6 @@ public class BlockRestore {
         this.oldBlockEntityNbt = oldBlockEntityNbt;
     }
 
-    private static org.bukkit.block.data.BlockData createBlockDataSafe(String s) {
-        try {
-            return Bukkit.createBlockData(s);
-        } catch (Exception e) {
-            return Material.AIR.createBlockData();
-        }
-    }
-
-    public static BlockRestore fromData(String data) {
-        return new BlockRestore(data);
-    }
-
-    public static BlockRestore fromData(String data, byte extraType, String extraData) {
-        return new BlockRestore(data, extraType, extraData);
-    }
-
-    public static BlockRestore fromData(String data, byte extraType, String extraData, boolean isPlace) {
-        return new BlockRestore(data, extraType, extraData, isPlace);
-    }
-
-    public static BlockRestore fromData(String data, byte extraType, String extraData, boolean isPlace, String oldData, String blockEntityNbt, String oldBlockEntityNbt) {
-        return new BlockRestore(data, extraType, extraData, isPlace, oldData, blockEntityNbt, oldBlockEntityNbt);
-    }
-
     public void reset(Gson gson, Location location) {
         Block block = location.getBlock();
         try {
@@ -80,7 +57,7 @@ public class BlockRestore {
             } else {
                 applyNewBlockData(block);
             }
-            applyContainerFromJson(block);
+            applyContainerForReset(block);
             applyBlockNbt(block);
         } catch (Exception e) {
             Bukkit.getLogger().warning("[StellarProtect] Failed to restore block at " + location + ": " + e.getMessage());
@@ -115,29 +92,12 @@ public class BlockRestore {
         return isPlace;
     }
 
-    public String getData() {
-        return data;
-    }
-
-    public byte getExtraType() {
-        return extraType;
-    }
-
-    public String getExtraData() {
-        return extraData;
-    }
-
-    public String getOldData() {
-        return oldData;
-    }
-
-    public String getBlockEntityNbt() {
-        return blockEntityNbt;
-    }
-
-    public String getOldBlockEntityNbt() {
-        return oldBlockEntityNbt;
-    }
+    public String getData() { return data; }
+    public byte getExtraType() { return extraType; }
+    public String getExtraData() { return extraData; }
+    public String getOldData() { return oldData; }
+    public String getBlockEntityNbt() { return blockEntityNbt; }
+    public String getOldBlockEntityNbt() { return oldBlockEntityNbt; }
 
     protected void applyNewBlockData(Block block) {
         if (data == null) {
@@ -153,26 +113,16 @@ public class BlockRestore {
     }
 
     protected void applyOldBlockData(Block block) {
-        if (oldData != null) {
+        if (oldData != null && !oldData.isEmpty()) {
             try {
-                BlockData blockData = Bukkit.createBlockData(oldData);
-                block.setBlockData(blockData, false);
-                return;
-            } catch (Exception ignored) {
-            }
-        }
-        if (data != null) {
-            try {
-                BlockData blockData = Bukkit.createBlockData(data);
-                BlockState state = block.getState();
-                state.setBlockData(blockData);
-                state.update(true, false);
+                block.setBlockData(Bukkit.createBlockData(oldData), false);
                 return;
             } catch (Exception ignored) {
             }
         }
         block.setType(Material.AIR);
     }
+
 
     protected void applyContainerFromJson(Block block) {
         if (!hasContainerContent()) return;
@@ -182,14 +132,57 @@ public class BlockRestore {
                 JsonObject obj = new JsonParser().parse(extraData).getAsJsonObject();
                 SerializerUtils.setInventoryContent(((InventoryHolder) state).getInventory(), obj);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
     }
 
     protected void applyBlockNbt(Block block) {
-        if (blockEntityNbt != null && block.getState() instanceof TileState) {
-            NbtUtils.applyBlockEntity((TileState) block.getState(), blockEntityNbt);
+        String nbt = isPlace ? oldBlockEntityNbt : blockEntityNbt;
+        if (nbt == null || nbt.isEmpty()) return;
+        BlockState state = block.getState();
+        if (state instanceof TileState) NbtUtils.applyBlockEntity((TileState) state, nbt);
+    }
+
+
+    private static org.bukkit.block.data.BlockData createBlockDataSafe(String s) {
+        try {
+            return Bukkit.createBlockData(s);
+        } catch (Exception e) {
+            return Material.AIR.createBlockData();
         }
+    }
+
+    public static BlockRestore fromData(String data) {
+        return new BlockRestore(data);
+    }
+
+    public static BlockRestore fromData(String data, byte extraType, String extraData) {
+        return new BlockRestore(data, extraType, extraData);
+    }
+
+    public static BlockRestore fromData(String data, byte extraType, String extraData, boolean isPlace) {
+        return new BlockRestore(data, extraType, extraData, isPlace);
+    }
+
+    public static BlockRestore fromData(String data, byte extraType, String extraData, boolean isPlace, String oldData, String blockEntityNbt, String oldBlockEntityNbt) {
+        return new BlockRestore(data, extraType, extraData, isPlace, oldData, blockEntityNbt, oldBlockEntityNbt);
+    }
+
+
+    private void applyContainerForReset(Block block) {
+        if (!isPlace) applyContainerFromJson(block);
+    }
+
+    public void undoPlace(Gson gson, Location location) {
+        Block block = location.getBlock();
+        applyNewBlockData(block);
+        applyContainerFromJson(block);
+        applyNewBlockNbt(block);
+    }
+
+    private void applyNewBlockNbt(Block block) {
+        if (blockEntityNbt == null || blockEntityNbt.isEmpty()) return;
+        BlockState state = block.getState();
+        if (state instanceof TileState) NbtUtils.applyBlockEntity((TileState) state, blockEntityNbt);
     }
 
 }

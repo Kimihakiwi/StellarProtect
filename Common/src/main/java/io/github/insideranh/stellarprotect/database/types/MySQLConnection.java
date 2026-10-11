@@ -31,13 +31,10 @@ public class MySQLConnection implements DatabaseConnection {
 
             boolean useSSL = stellarProtect.getConfig().getBoolean("databases.mysql.useSSL", false);
             String url = "jdbc:mysql://" + stellarProtect.getConfig().getString("databases.mysql.host") + ":" +
-                    stellarProtect.getConfig().getInt("databases.mysql.port") + "/" +
-                    stellarProtect.getConfig().getString("databases.mysql.database") +
-                    "?autoReconnect=true";
+                stellarProtect.getConfig().getInt("databases.mysql.port") + "/" +
+                stellarProtect.getConfig().getString("databases.mysql.database");
 
             stellarProtect.getLogger().info("Connecting to MySQL database with url: " + url);
-
-            config.setDriverClassName("com.mysql.jdbc.Driver");
 
             config.setJdbcUrl(url);
             config.setUsername(stellarProtect.getConfig().getString("databases.mysql.user"));
@@ -58,9 +55,11 @@ public class MySQLConnection implements DatabaseConnection {
             config.addDataSourceProperty("useUnicode", "true");
             config.addDataSourceProperty("useSSL", useSSL);
             config.addDataSourceProperty("tcpKeepAlive", true);
-            config.setMaxLifetime(Long.MAX_VALUE);
-            config.setMinimumIdle(0);
-            config.setIdleTimeout(30000L);
+            config.setMaxLifetime(1800000L);
+            config.setKeepaliveTime(300000L);
+            config.setValidationTimeout(5000L);
+            config.setMinimumIdle(1);
+            config.setIdleTimeout(600000L);
             config.setConnectionTimeout(10000L);
             config.setMaximumPoolSize(10);
 
@@ -77,84 +76,84 @@ public class MySQLConnection implements DatabaseConnection {
 
                 try (Statement statement = connection.createStatement()) {
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + playersTable + " (" +
-                            "id BIGINT PRIMARY KEY," +
-                            "uuid VARCHAR(36) NOT NULL," +
-                            "name VARCHAR(36)" +
-                            ")");
+                        "id BIGINT PRIMARY KEY," +
+                        "uuid VARCHAR(36) NOT NULL," +
+                        "name VARCHAR(36)" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + worldsTable + " (" +
-                            "id INT PRIMARY KEY," +
-                            "name TEXT NOT NULL" +
-                            ")");
+                        "id INT PRIMARY KEY," +
+                        "name TEXT NOT NULL" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + entityIdsTable + " (" +
-                            "id BIGINT PRIMARY KEY," +
-                            "entityType TEXT NOT NULL" +
-                            ")");
+                        "id BIGINT PRIMARY KEY," +
+                        "entityType TEXT NOT NULL" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + logEntriesTable + " (" +
-                            "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
-                            "player_id BIGINT," +
-                            "world_id INT," +
-                            "x DECIMAL(8, 2)," +
-                            "y DECIMAL(8, 2)," +
-                            "z DECIMAL(8, 2)," +
-                            "action_type INT," +
-                            "restored TINYINT DEFAULT 0," +
-                            "extra_json TEXT," +
-                            "created_at BIGINT," +
-                            "block_id INT DEFAULT NULL," +
-                            "old_block_id INT DEFAULT NULL," +
-                            "item_id BIGINT DEFAULT NULL," +
-                            "amount INT DEFAULT 0," +
-                            "entity_type VARCHAR(48) DEFAULT NULL," +
-                            "chunk_key BIGINT DEFAULT NULL," +
-                            "INDEX idx_block_time (block_id, created_at)," +
-                            "INDEX idx_oldblock_time (old_block_id, created_at)," +
-                            "INDEX idx_item_time (item_id, created_at)," +
-                            "INDEX idx_action_time (action_type, created_at)," +
-                            "INDEX idx_entity_time (entity_type, created_at)," +
-                            "INDEX idx_chunk (world_id, chunk_key, created_at)" +
-                            ")");
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                        "player_id BIGINT," +
+                        "world_id INT," +
+                        "x DECIMAL(8, 2)," +
+                        "y DECIMAL(8, 2)," +
+                        "z DECIMAL(8, 2)," +
+                        "action_type INT," +
+                        "restored TINYINT DEFAULT 0," +
+                        "extra_json TEXT," +
+                        "created_at BIGINT," +
+                        "block_id INT DEFAULT NULL," +
+                        "old_block_id INT DEFAULT NULL," +
+                        "item_id BIGINT DEFAULT NULL," +
+                        "amount INT DEFAULT 0," +
+                        "entity_type VARCHAR(48) DEFAULT NULL," +
+                        "chunk_key BIGINT DEFAULT NULL," +
+                        "INDEX idx_block_time (block_id, created_at)," +
+                        "INDEX idx_oldblock_time (old_block_id, created_at)," +
+                        "INDEX idx_item_time (item_id, created_at)," +
+                        "INDEX idx_action_time (action_type, created_at)," +
+                        "INDEX idx_entity_time (entity_type, created_at)," +
+                        "INDEX idx_chunk (world_id, chunk_key, created_at)" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + idCounterTable + " (" +
-                            "table_name VARCHAR(64) PRIMARY KEY," +
-                            "current_id INTEGER)");
+                        "table_name VARCHAR(64) PRIMARY KEY," +
+                        "current_id INTEGER)");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + itemTemplatesTable + " (" +
-                            "id BIGINT PRIMARY KEY," +
-                            "base64 TEXT," +
-                            "s TINYINT," +
-                            "access_count INTEGER DEFAULT 0," +
-                            "last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                            "total_quantity_used INTEGER DEFAULT 0," +
-                            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
-                            ")");
+                        "id BIGINT PRIMARY KEY," +
+                        "base64 TEXT," +
+                        "s TINYINT," +
+                        "access_count INTEGER DEFAULT 0," +
+                        "last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                        "total_quantity_used INTEGER DEFAULT 0," +
+                        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + blockTemplatesTable + " (" +
-                            "id INT PRIMARY KEY," +
-                            "block_data TEXT" +
-                            ")");
+                        "id INT PRIMARY KEY," +
+                        "block_data TEXT" +
+                        ")");
 
                     String prefix = stellarProtect.getConfigManager().getTablesPrefix();
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "inv_snapshots (" +
-                            "log_entry_id BIGINT NOT NULL," +
-                            "slot SMALLINT NOT NULL," +
-                            "item_id BIGINT DEFAULT NULL," +
-                            "amount INT DEFAULT 0," +
-                            "nbt TEXT," +
-                            "PRIMARY KEY (log_entry_id, slot)," +
-                            "INDEX idx_inv_item (item_id)" +
-                            ")");
+                        "log_entry_id BIGINT NOT NULL," +
+                        "slot SMALLINT NOT NULL," +
+                        "item_id BIGINT DEFAULT NULL," +
+                        "amount INT DEFAULT 0," +
+                        "nbt TEXT," +
+                        "PRIMARY KEY (log_entry_id, slot)," +
+                        "INDEX idx_inv_item (item_id)" +
+                        ")");
 
                     statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "inv_txns (" +
-                            "log_entry_id BIGINT NOT NULL," +
-                            "item_id BIGINT NOT NULL," +
-                            "amount_delta INT NOT NULL," +
-                            "is_added BOOLEAN NOT NULL," +
-                            "PRIMARY KEY (log_entry_id, item_id, is_added)," +
-                            "INDEX idx_txn_item (item_id)" +
-                            ")");
+                        "log_entry_id BIGINT NOT NULL," +
+                        "item_id BIGINT NOT NULL," +
+                        "amount_delta INT NOT NULL," +
+                        "is_added BOOLEAN NOT NULL," +
+                        "PRIMARY KEY (log_entry_id, item_id, is_added)," +
+                        "INDEX idx_txn_item (item_id)" +
+                        ")");
 
                     statement.execute("SET SESSION foreign_key_checks = 0");
                     statement.execute("SET SESSION unique_checks = 0");
@@ -182,25 +181,25 @@ public class MySQLConnection implements DatabaseConnection {
 
         try (Connection connection = dataSource.getConnection()) {
             try (Statement stmt = connection.createStatement()) {
-                stmt.execute("DROP INDEX idx_query_main ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_log_entries_optimized ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_action_time_coords ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_log_entries_filtering ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_query_optimized ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_covering_query ON " + logEntries + ";");
-                stmt.execute("DROP INDEX idx_coords_time ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_query_main ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_log_entries_optimized ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_action_time_coords ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_log_entries_filtering ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_query_optimized ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_covering_query ON " + logEntries + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_coords_time ON " + logEntries + ";");
 
-                stmt.execute("DROP INDEX idx_item_hash ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_access_count ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_last_accessed ON " + itemTemplates + ";");
-                stmt.execute("DROP INDEX idx_item_total_used ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_hash ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_access_count ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_last_accessed ON " + itemTemplates + ";");
+                executeIndexSql(stmt, "DROP INDEX idx_item_total_used ON " + itemTemplates + ";");
 
-                stmt.execute("CREATE INDEX idx_location_time_lookup ON " + logEntries + " (created_at DESC, x, y, z, action_type)");
-                stmt.execute("CREATE INDEX idx_player_time ON " + logEntries + " (player_id, created_at)");
-                stmt.execute("CREATE INDEX idx_world_time ON " + logEntries + " (world_id, created_at)");
-                stmt.execute("CREATE INDEX idx_time_action ON " + logEntries + " (created_at, action_type)");
+                executeIndexSql(stmt, "CREATE INDEX idx_location_time_lookup ON " + logEntries + " (created_at DESC, x, y, z, action_type)");
+                executeIndexSql(stmt, "CREATE INDEX idx_player_time ON " + logEntries + " (player_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_world_time ON " + logEntries + " (world_id, created_at)");
+                executeIndexSql(stmt, "CREATE INDEX idx_time_action ON " + logEntries + " (created_at, action_type)");
 
-                stmt.execute("CREATE INDEX idx_players_id ON " + players + " (id)");
+                executeIndexSql(stmt, "CREATE INDEX idx_players_id ON " + players + " (id)");
             }
         } catch (SQLException e) {
             stellarProtect.getLogger().warning("Failed to create indexes: " + e.getMessage());
@@ -244,6 +243,16 @@ public class MySQLConnection implements DatabaseConnection {
     public void close() {
         if (this.dataSource != null) {
             this.dataSource.close();
+        }
+    }
+
+
+    private static boolean executeIndexSql(Statement statement, String sql) throws SQLException {
+        try {
+            return statement.execute(sql);
+        } catch (SQLException e) {
+            if (e.getErrorCode() == 1091 || e.getErrorCode() == 1061) return false;
+            throw e;
         }
     }
 

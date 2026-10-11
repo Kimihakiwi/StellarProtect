@@ -28,7 +28,7 @@ public class InventorySerializable {
     @SneakyThrows
     public static ItemStack itemStackFromBase64(String data) {
         if (data == null || data.trim().isEmpty() || data.equals("null")) return null;
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(data));
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getMimeDecoder().decode(data));
              BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream)) {
             return (ItemStack) dataInput.readObject();
         } catch (ClassNotFoundException e) {
@@ -92,7 +92,7 @@ public class InventorySerializable {
     @SneakyThrows
     public static ItemStack[] itemStackArrayFromBase64(String data) {
         if (data == null || data.trim().isEmpty()) return new ItemStack[0];
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(data));
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(Base64.getMimeDecoder().decode(data));
              BukkitObjectInputStream dataInput = new BukkitObjectInputStream(inputStream)) {
             int len = dataInput.readInt();
             ItemStack[] result = new ItemStack[len];

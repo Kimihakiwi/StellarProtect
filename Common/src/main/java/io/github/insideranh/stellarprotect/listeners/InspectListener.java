@@ -39,12 +39,7 @@ public class InspectListener implements Listener {
         if (WorldUtils.isValidChestBlock(block.getType()) && action.equals(Action.RIGHT_CLICK_BLOCK)) {
             plugin.getInspectHandler().handleChestInspection(player, blockLocation, 1, 0, 10);
         } else {
-            if (event.hasItem() && event.getItem().getType().isBlock()) {
-                Block blockFace = block.getRelative(event.getBlockFace());
-                plugin.getInspectHandler().handleBlockInspection(player, blockFace.getLocation(), 1, 0, 10);
-            } else {
-                plugin.getInspectHandler().handleBlockInspection(player, blockLocation, 1, 0, 10);
-            }
+            plugin.getInspectHandler().handleBlockInspection(player, blockLocation, 1, 0, 10);
         }
     }
 

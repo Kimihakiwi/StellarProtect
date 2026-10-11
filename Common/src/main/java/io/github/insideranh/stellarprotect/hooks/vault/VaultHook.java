@@ -20,28 +20,27 @@ public class VaultHook extends DefaultVaultHook {
 
     @Override
     public void load() {
-        if (taskCanceller != null) {
-            taskCanceller.cancel();
-        }
-
+        if (taskCanceller != null) taskCanceller.cancel();
         if (plugin.getConfigManager().isEconomyDisabled() || economy == null) return;
 
         taskCanceller = plugin.getStellarTaskHook(() -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
-                if (!player.isOnline()) continue;
-                PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
-                if (playerProtect == null) continue;
-
-                double balance = StringCleanerUtils.limitTo2Decimals(economy.getBalance(player));
-                if (balance == playerProtect.getLastEconomyBalance()) continue;
-
-                double difference = balance - playerProtect.getLastEconomyBalance();
-                playerProtect.setLastEconomyBalance(balance);
-
-                LoggerCache.addLog(new PlayerEconomyEntry(playerProtect.getPlayerId(), player.getLocation(), MoneyVarType.VAULT, difference));
+                plugin.getStellarTaskHook(() -> checkPlayer(player)).runEntity(player);
             }
-        }).runTaskTimerAsynchronously(0L, plugin.getConfigManager().getEconomyCheckInterval() * 20L);
+        }).runTaskTimer(0L, plugin.getConfigManager().getEconomyCheckInterval() * 20L);
     }
+
+    private void checkPlayer(Player player) {
+        if (!player.isOnline() || plugin.getConfigManager().isEconomyDisabled() || economy == null) return;
+        PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
+        if (playerProtect == null) return;
+        double balance = StringCleanerUtils.limitTo2Decimals(economy.getBalance(player));
+        if (balance == playerProtect.getLastEconomyBalance()) return;
+        double difference = balance - playerProtect.getLastEconomyBalance();
+        playerProtect.setLastEconomyBalance(balance);
+        LoggerCache.addLog(new PlayerEconomyEntry(playerProtect.getPlayerId(), player.getLocation(), MoneyVarType.VAULT, difference));
+    }
+
 
     @Override
     public void setupEconomy() {

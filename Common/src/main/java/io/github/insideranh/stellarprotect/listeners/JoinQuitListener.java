@@ -10,6 +10,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.Location;
+import java.util.UUID;
 
 public class JoinQuitListener implements Listener {
 
@@ -18,25 +20,31 @@ public class JoinQuitListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        plugin.getJoinExecutor().execute(() -> {
-            PlayerProtect playerProtect = plugin.getProtectDatabase().loadOrCreatePlayer(player);
-            if (playerProtect != null) {
-                playerProtect.create();
-                playerProtect.setLoginTime(System.currentTimeMillis());
-
-                LoggerCache.addLog(new PlayerSessionEntry(playerProtect.getPlayerId(), player.getLocation(), (byte) 1, 0));
-
-                PlayerCache.cacheName(playerProtect.getPlayerId(), player.getName());
-
-                plugin.getVaultHook().joinPlayer(player, playerProtect);
-            }
-
-            if (!plugin.getConfigManager().isCheckUpdates()) return;
-            if (!player.hasPermission("stellarprotect.admin") || plugin.getUpdateChecker() == null) return;
-
-            plugin.getUpdateChecker().sendUpdateMessage(player);
-        });
+        UUID uuid = player.getUniqueId();
+        String name = player.getName();
+        Location location = player.getLocation();
+        boolean admin = player.hasPermission("stellarprotect.admin");
+        plugin.getJoinExecutor().execute(() -> loadPlayerAsync(player, uuid, name, location, admin));
     }
+
+    private void loadPlayerAsync(Player player, UUID uuid, String name, Location location, boolean admin) {
+        PlayerProtect playerProtect = plugin.getProtectDatabase().loadOrCreatePlayer(uuid, name);
+        if (playerProtect == null) return;
+        plugin.getStellarTaskHook(() -> applyJoin(player, playerProtect, location, name, admin)).runEntity(player);
+    }
+
+    private void applyJoin(Player player, PlayerProtect playerProtect, Location location, String name, boolean admin) {
+        if (!player.isOnline() || !player.getUniqueId().equals(playerProtect.getUuid())) return;
+        playerProtect.create();
+        playerProtect.setLoginTime(System.currentTimeMillis());
+        LoggerCache.addLog(new PlayerSessionEntry(playerProtect.getPlayerId(), location, (byte) 1, 0));
+        PlayerCache.cacheName(playerProtect.getPlayerId(), name);
+        plugin.getVaultHook().joinPlayer(player, playerProtect);
+        if (plugin.getConfigManager().isCheckUpdates() && admin && plugin.getUpdateChecker() != null) {
+            plugin.getUpdateChecker().sendUpdateMessage(player);
+        }
+    }
+
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {

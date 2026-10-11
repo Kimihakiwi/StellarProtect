@@ -5,13 +5,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
-import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.player.PlayerUnleashEntityEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.spigotmc.event.entity.EntityDismountEvent;
 import org.spigotmc.event.entity.EntityMountEvent;
 
-import java.util.Arrays;
 
 public class BlockListener_v1_9_R4 implements Listener {
 
@@ -26,10 +24,6 @@ public class BlockListener_v1_9_R4 implements Listener {
         this.eventLogicHandler.onPortalCreate(event.getBlocks());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBrewEvent(BrewEvent event) {
-        this.eventLogicHandler.onBrewEvent(event.getContents().getIngredient(), event.getContents().getFuel(), Arrays.asList(event.getContents().getContents()));
-    }
 
     @EventHandler
     public void onMount(EntityMountEvent event) {

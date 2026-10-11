@@ -55,7 +55,20 @@ public class PickUpDropListener implements Listener {
         playerProtect.setLastPickUpAmount(newTotal);
 
         long currentTime = System.currentTimeMillis();
-        playerProtect.setNextInspect(currentTime + 1000L);
+        playerProtect.setNextSeparateLogPickUp(currentTime + 1000L);
+    }
+
+    private void schedulePickupFlush(PlayerProtect playerProtect, Location location, long itemId, long locationHash) {
+        plugin.getStellarTaskHook(() -> {
+            if (playerProtect.getLastLocation() == null
+                || playerProtect.getLastPickItemId() != itemId
+                || playerProtect.getPickUpXYZ() != locationHash) return;
+            if (playerProtect.getNextSeparateLogPickUp() < System.currentTimeMillis()) {
+                forceFlushCurrentGroup(playerProtect, false);
+            } else {
+                schedulePickupFlush(playerProtect, location, itemId, locationHash);
+            }
+        }).runTask(location, 25L);
     }
 
     private static long calculateLocationHash(Location location) {
@@ -63,7 +76,7 @@ public class PickUpDropListener implements Listener {
         long y = location.getBlockY();
         long z = location.getBlockZ();
 
-        return x * 73856093L ^ y * 19349663L ^ z * 83492791L;
+        return x * 73856093L ^ y * 19349663L ^ z * 83492791L ^ location.getWorld().getUID().hashCode();
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -73,6 +86,7 @@ public class PickUpDropListener implements Listener {
 
         ItemStack itemStack = event.getItemDrop().getItemStack();
         if (itemStack.getType().name().equals("AIR")) return;
+        if (ActionType.DROP_ITEM.shouldSkipLog(event.getPlayer().getWorld().getName(), itemStack.getType().name())) return;
 
         ItemReference itemReference = plugin.getItemsManager().getItemReference(itemStack);
         forceFlushCurrentGroup(playerProtect, false);
@@ -88,6 +102,9 @@ public class PickUpDropListener implements Listener {
 
         ItemStack itemStack = event.getItem().getItemStack();
         if (itemStack.getType() == Material.AIR) return;
+        if (ActionType.PICKUP_ITEM.shouldSkipLog(player.getWorld().getName(), itemStack.getType().name())) return;
+        int pickedUp = Math.max(0, itemStack.getAmount() - event.getRemaining());
+        if (pickedUp == 0) return;
 
         Location location = player.getLocation();
         ItemReference itemReference = plugin.getItemsManager().getItemReference(itemStack);
@@ -97,12 +114,14 @@ public class PickUpDropListener implements Listener {
         long itemId = itemReference.getTemplateId();
 
         if (shouldStartNewGroup(playerProtect, currentTime, locationHash, itemId)) {
+            if (playerProtect.getLastLocation() != null) {
+                saveCurrentGroupIfExists(playerProtect, playerProtect.getLastLocation(), currentTime);
+            }
             playerProtect.setLastLocation(location);
-
-            saveCurrentGroupIfExists(playerProtect, location, currentTime);
-            startNewItemGroup(playerProtect, itemId, locationHash, itemStack.getAmount(), currentTime);
+            startNewItemGroup(playerProtect, itemId, locationHash, pickedUp, currentTime);
+            schedulePickupFlush(playerProtect, location, itemId, locationHash);
         } else {
-            continueCurrentGroup(playerProtect, itemStack.getAmount());
+            continueCurrentGroup(playerProtect, pickedUp);
         }
     }
 

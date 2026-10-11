@@ -101,7 +101,7 @@ public class ItemsManager {
         return itemCache.getById(id);
     }
 
-    public long createItemTemplate(ItemStack itemStack, String base64) {
+    public synchronized long createItemTemplate(ItemStack itemStack, String base64) {
         long id = currentId.getAndIncrement();
 
         ItemTemplate template = new ItemTemplate(id, itemStack, base64);
@@ -111,7 +111,7 @@ public class ItemsManager {
         return id;
     }
 
-    public void saveItems() {
+    public synchronized void saveItems() {
         if (unsavedTemplates.isEmpty()) return;
 
         List<ItemTemplate> templates = new ArrayList<>();

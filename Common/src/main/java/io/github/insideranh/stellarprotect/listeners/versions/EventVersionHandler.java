@@ -7,12 +7,11 @@ import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockStateLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerItemLogEntry;
-import io.github.insideranh.stellarprotect.database.entries.world.BrewingLogEntry;
 import io.github.insideranh.stellarprotect.database.entries.world.RaidLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import io.github.insideranh.stellarprotect.items.ItemReference;
 import io.github.insideranh.stellarprotect.utils.PlayerUtils;
-import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Raid;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
@@ -30,7 +29,7 @@ public class EventVersionHandler implements EventLogicHandler {
     @Override
     public void onPortalCreate(List<Block> blocks) {
         for (Block block : blocks) {
-            if (ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name())) return;
+            if (ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name())) continue;
             LoggerCache.addLog(new PlayerBlockLogEntry(PlayerUtils.getEntityByDirectId("=portal"), block, ActionType.BLOCK_PLACE));
         }
     }
@@ -38,22 +37,22 @@ public class EventVersionHandler implements EventLogicHandler {
     @Override
     public void onSmithEvent(HumanEntity humanEntity, ItemStack result) {
         if (!(humanEntity instanceof Player)) return;
+        if (result == null || result.getType() == Material.AIR) return;
         Player player = (Player) humanEntity;
+        plugin.getProtectNMS().sendActionTitle(player,
+            plugin.getLangManager().get("messages.smith.upgrade"),
+            plugin.getLangManager().get("messages.tooltips.smith"),
+            "/sp view smith " + player.getLocation().getBlockX() + "," + player.getLocation().getBlockY() + "," + player.getLocation().getBlockZ(),
+            text -> text
+                .replace("<time>", "now")
+                .replace("<player>", player.getName())
+                .replace("<data>", result.getType().name())
+        );
         if (ActionType.SMITH.shouldSkipLog(player.getWorld().getName(), result.getType().name())) return;
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
         ItemReference itemReference = plugin.getItemsManager().getItemReference(result);
         LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), itemReference, player.getLocation(), ActionType.SMITH));
-    }
-
-    @Override
-    public void onBrewEvent(ItemStack ingredient, ItemStack fuel, List<ItemStack> results) {
-        if (!plugin.getConfigManager().isLiquidTracking()) return;
-        for (ItemStack result : results) {
-            if (result == null || result.getType().name().equals("AIR")) continue;
-            BrewingLogEntry entry = new BrewingLogEntry(Bukkit.getPlayerExact(""), ingredient, fuel, result);
-            LoggerCache.addLog(entry);
-        }
     }
 
     @Override
@@ -71,7 +70,7 @@ public class EventVersionHandler implements EventLogicHandler {
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
         io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry mountEntry =
-                new io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry(playerProtect.getPlayerId(), player.getLocation(), entity, true);
+            new io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry(playerProtect.getPlayerId(), player.getLocation(), entity, true);
         LoggerCache.addLog(mountEntry);
     }
 
@@ -83,7 +82,7 @@ public class EventVersionHandler implements EventLogicHandler {
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
         io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry mountEntry =
-                new io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry(playerProtect.getPlayerId(), player.getLocation(), entity, false);
+            new io.github.insideranh.stellarprotect.database.entries.players.PlayerMountEntry(playerProtect.getPlayerId(), player.getLocation(), entity, false);
         LoggerCache.addLog(mountEntry);
     }
 
@@ -95,7 +94,7 @@ public class EventVersionHandler implements EventLogicHandler {
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
         io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry mountEntry =
-                new io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry(playerProtect.getPlayerId(), player.getLocation(), entity, true);
+            new io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry(playerProtect.getPlayerId(), player.getLocation(), entity, true);
         LoggerCache.addLog(mountEntry);
     }
 
@@ -107,14 +106,14 @@ public class EventVersionHandler implements EventLogicHandler {
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
         io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry mountEntry =
-                new io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry(playerProtect.getPlayerId(), player.getLocation(), entity, false);
+            new io.github.insideranh.stellarprotect.database.entries.players.PlayerLeashEntry(playerProtect.getPlayerId(), player.getLocation(), entity, false);
         LoggerCache.addLog(mountEntry);
     }
 
     @Override
     public void onRaidTrigger(Player player, Raid raid) {
         if (player == null || raid == null) return;
-        long playerId = io.github.insideranh.stellarprotect.utils.PlayerUtils.getPlayerOrEntityId(player.getName());
+        long playerId = PlayerUtils.getPlayerOrEntityId(player.getName());
         LoggerCache.addLog(new RaidLogEntry(playerId, raid.getLocation(), RaidLogEntry.RaidPhase.TRIGGER));
     }
 

@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.UUID;
 
 public class PlayerRepositorySQL implements PlayerRepository {
 
@@ -31,7 +32,7 @@ public class PlayerRepositorySQL implements PlayerRepository {
     public PlayerProtect loadOrCreatePlayer(Player player) {
         try {
             try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT id FROM " + configManager.getTablesPlayers() + " WHERE uuid = ?"
+                "SELECT id FROM " + configManager.getTablesPlayers() + " WHERE uuid = ?"
             )) {
                 select.setString(1, player.getUniqueId().toString());
                 try (ResultSet result = select.executeQuery()) {
@@ -44,7 +45,7 @@ public class PlayerRepositorySQL implements PlayerRepository {
 
             long newId = generateNextId();
             try (PreparedStatement insert = connection.prepareStatement(
-                    "INSERT INTO " + configManager.getTablesPlayers() + " (id, uuid, name, realname) VALUES (?, ?, ?, ?)"
+                "INSERT INTO " + configManager.getTablesPlayers() + " (id, uuid, name, realname) VALUES (?, ?, ?, ?)"
             )) {
                 insert.setLong(1, newId);
                 insert.setString(2, player.getUniqueId().toString());
@@ -54,6 +55,39 @@ public class PlayerRepositorySQL implements PlayerRepository {
             }
 
             return new PlayerProtect(player.getUniqueId(), player.getName(), newId);
+        } catch (SQLException e) {
+            stellarProtect.getLogger().log(Level.SEVERE, "Error on loadOrCreatePlayer", e);
+            return null;
+        }
+    }
+
+    @Override
+    public PlayerProtect loadOrCreatePlayer(UUID uuid, String name) {
+        try {
+            try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id FROM " + configManager.getTablesPlayers() + " WHERE uuid = ?"
+            )) {
+                select.setString(1, uuid.toString());
+                try (ResultSet result = select.executeQuery()) {
+                    if (result.next()) {
+                        long id = result.getLong("id");
+                        return new PlayerProtect(uuid, name, id);
+                    }
+                }
+            }
+
+            long newId = generateNextId();
+            try (PreparedStatement insert = connection.prepareStatement(
+                "INSERT INTO " + configManager.getTablesPlayers() + " (id, uuid, name, realname) VALUES (?, ?, ?, ?)"
+            )) {
+                insert.setLong(1, newId);
+                insert.setString(2, uuid.toString());
+                insert.setString(3, name.toLowerCase());
+                insert.setString(4, name);
+                insert.executeUpdate();
+            }
+
+            return new PlayerProtect(uuid, name, newId);
         } catch (SQLException e) {
             stellarProtect.getLogger().log(Level.SEVERE, "Error on loadOrCreatePlayer", e);
             return null;
@@ -105,7 +139,7 @@ public class PlayerRepositorySQL implements PlayerRepository {
     @Override
     public long generateNextId() {
         try (PreparedStatement getCurrentId = connection.prepareStatement(
-                "SELECT current_id FROM " + configManager.getTablesIdCounter() + " WHERE table_name = '" + configManager.getTablesPlayers() + "'")
+            "SELECT current_id FROM " + configManager.getTablesIdCounter() + " WHERE table_name = '" + configManager.getTablesPlayers() + "'")
         ) {
             try (ResultSet result = getCurrentId.executeQuery()) {
                 if (result.next()) {
@@ -113,7 +147,7 @@ public class PlayerRepositorySQL implements PlayerRepository {
                     long newId = currentId + 1;
 
                     try (PreparedStatement updateId = connection.prepareStatement(
-                            "UPDATE " + configManager.getTablesIdCounter() + " SET current_id = ? WHERE table_name = '" + configManager.getTablesPlayers() + "'")
+                        "UPDATE " + configManager.getTablesIdCounter() + " SET current_id = ? WHERE table_name = '" + configManager.getTablesPlayers() + "'")
                     ) {
                         updateId.setLong(1, newId);
                         updateId.executeUpdate();
@@ -122,7 +156,7 @@ public class PlayerRepositorySQL implements PlayerRepository {
                     return newId;
                 } else {
                     try (PreparedStatement initId = connection.prepareStatement(
-                            "INSERT INTO " + configManager.getTablesIdCounter() + " (table_name, current_id) VALUES ('" + configManager.getTablesPlayers() + "', 1)")
+                        "INSERT INTO " + configManager.getTablesIdCounter() + " (table_name, current_id) VALUES ('" + configManager.getTablesPlayers() + "', 1)")
                     ) {
                         initId.executeUpdate();
                     }

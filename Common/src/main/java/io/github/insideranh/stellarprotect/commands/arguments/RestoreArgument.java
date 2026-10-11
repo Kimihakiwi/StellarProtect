@@ -10,6 +10,7 @@ import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.data.RestoreSession;
 import io.github.insideranh.stellarprotect.database.entries.LogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
+import io.github.insideranh.stellarprotect.utils.WorldUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +38,7 @@ public class RestoreArgument extends StellarArgument {
         RadiusArg radiusArg = ArgumentsParser.parseRadiusOrNull(player, arguments, player.getLocation());
 
         if (radiusArg == null) {
-            radiusArg = new RadiusArg(player.getLocation(), 10, -1);
+            radiusArg = new RadiusArg(player.getLocation(), 10, WorldUtils.searchWorldId(player.getWorld().getName()));
             plugin.getLangManager().sendMessage(player, "messages.specifyRadius");
         }
 
@@ -189,8 +190,8 @@ public class RestoreArgument extends StellarArgument {
             }
 
             return Stream.of("t:1h", "t:1d", "t:30m", "t:1mo", "t:1y", "r:10", "r:30", "r:#global", "r:#here:20", "a:", "u:", "i:", "e:", "b:", "ench:", "biome:", "ch:", "tool:", "within:", "lore:", "display:", "mi:", "me:", "sort:", "#session", "#preview", "#verbose", "#silent", "#count", "#entities", "#blocks", "#containers", "#items", "#kills", "#regex", "#chunk")
-                    .filter(name -> name.contains(currentArg))
-                    .collect(Collectors.toList());
+                .filter(name -> name.contains(currentArg))
+                .collect(Collectors.toList());
         }
 
         return Arrays.asList("t:1h", "t:1d", "t:30m", "r:10", "a:", "u:", "i:", "e:", "b:", "ench:", "#session", "#preview", "#verbose", "#silent", "#count", "#entities", "#blocks", "#containers", "#items");
@@ -231,48 +232,48 @@ public class RestoreArgument extends StellarArgument {
         }
 
         plugin.getProtectDatabase().getRestoreActions(filters, currentSkip, batchSize)
-                .thenAccept(callbackLookup -> {
-                    Map<LocationCache, Set<LogEntry>> groupedLogs = callbackLookup.getLogs();
-                    int processedInBatch = groupedLogs.values().stream().mapToInt(Set::size).sum();
+            .thenAccept(callbackLookup -> {
+                Map<LocationCache, Set<LogEntry>> groupedLogs = callbackLookup.getLogs();
+                int processedInBatch = groupedLogs.values().stream().mapToInt(Set::size).sum();
 
-                    if (processedInBatch > 0) {
-                        plugin.getStellarTaskHook(() -> {
+                if (processedInBatch > 0) {
+                    plugin.getStellarTaskHook(() -> {
+                        if (preview) {
+                            plugin.getRestoreManager().preview(player, groupedLogs, verbose, silent);
+                        } else {
+                            plugin.getRestoreManager().rollback(player, groupedLogs, verbose, silent);
+                        }
+
+                        int totalProcessed = currentSkip + processedInBatch;
+                        double progress = (totalProcessed * 100.0) / totalLogs;
+
+                        if (!silent) {
                             if (preview) {
-                                plugin.getRestoreManager().preview(player, groupedLogs, verbose, silent);
-                            } else {
-                                plugin.getRestoreManager().rollback(player, groupedLogs, verbose, silent);
-                            }
-
-                            int totalProcessed = currentSkip + processedInBatch;
-                            double progress = (totalProcessed * 100.0) / totalLogs;
-
-                            if (!silent) {
-                                if (preview) {
-                                    if (verbose) {
-                                        player.sendMessage(plugin.getLangManager().get("messages.rollback.preview-verbose").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
-                                    } else {
-                                        player.sendMessage(plugin.getLangManager().get("messages.rollback.preview").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
-                                    }
+                                if (verbose) {
+                                    player.sendMessage(plugin.getLangManager().get("messages.rollback.preview-verbose").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
                                 } else {
-                                    if (verbose) {
-                                        player.sendMessage(plugin.getLangManager().get("messages.rollback.progress-verbose").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
-                                    } else {
-                                        player.sendMessage(plugin.getLangManager().get("messages.rollback.progress").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
-                                    }
+                                    player.sendMessage(plugin.getLangManager().get("messages.rollback.preview").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
+                                }
+                            } else {
+                                if (verbose) {
+                                    player.sendMessage(plugin.getLangManager().get("messages.rollback.progress-verbose").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
+                                } else {
+                                    player.sendMessage(plugin.getLangManager().get("messages.rollback.progress").replace("<progress>", String.valueOf(Math.round(progress))).replace("<now>", String.valueOf(totalProcessed)).replace("<total>", String.valueOf(totalLogs)));
                                 }
                             }
+                        }
 
-                            plugin.getStellarTaskHook(() -> processBatchRestore(player, preview, verbose, silent, filters, currentSkip + batchSize, totalLogs, batchSize, delayTicks)).runTask(delayTicks);
-                        }).runTask();
-                    } else {
-                        player.sendMessage(plugin.getLangManager().get("messages.rollback.success").replace("<current>", String.valueOf(currentSkip)).replace("<total>", String.valueOf(totalLogs)));
-                    }
-                })
-                .exceptionally(error -> {
-                    player.sendMessage(plugin.getLangManager().get("messages.rollback.error").replace("<section>", String.valueOf(currentSkip / batchSize + 1)).replace("<error>", error.getMessage()));
-                    error.printStackTrace();
-                    return null;
-                });
+                        plugin.getStellarTaskHook(() -> processBatchRestore(player, preview, verbose, silent, filters, currentSkip + batchSize, totalLogs, batchSize, delayTicks)).runTask(delayTicks);
+                    }).runTask();
+                } else {
+                    player.sendMessage(plugin.getLangManager().get("messages.rollback.success").replace("<current>", String.valueOf(currentSkip)).replace("<total>", String.valueOf(totalLogs)));
+                }
+            })
+            .exceptionally(error -> {
+                player.sendMessage(plugin.getLangManager().get("messages.rollback.error").replace("<section>", String.valueOf(currentSkip / batchSize + 1)).replace("<error>", error.getMessage()));
+                error.printStackTrace();
+                return null;
+            });
     }
 
 }

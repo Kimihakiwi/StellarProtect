@@ -23,15 +23,16 @@ public class LogEntry {
     protected final double z;
     protected final int actionType;
     protected final long createdAt;
+    private byte restored;
+    @Setter
+    private String forcedJson;
+
     protected Integer blockId;
     protected Integer oldBlockId;
     protected Long itemId;
     protected Integer amount;
     protected String entityType;
     protected Long chunkKey;
-    private byte restored;
-    @Setter
-    private String forcedJson;
 
     @SneakyThrows
     public LogEntry(ResultSet resultSet) {
@@ -42,35 +43,28 @@ public class LogEntry {
         this.y = resultSet.getDouble("y");
         this.z = resultSet.getDouble("z");
         this.actionType = resultSet.getInt("action_type");
-        this.createdAt = resultSet.getLong("created_at");
+        this.createdAt = normalizeCreatedAt(resultSet.getLong("created_at"));
         this.restored = resultSet.getByte("restored");
-        try {
-            this.blockId = readNullableInt(resultSet, "block_id");
-        } catch (Exception ignored) {
-        }
-        try {
-            this.oldBlockId = readNullableInt(resultSet, "old_block_id");
-        } catch (Exception ignored) {
-        }
+        try { this.blockId = readNullableInt(resultSet, "block_id"); } catch (Exception ignored) {}
+        try { this.oldBlockId = readNullableInt(resultSet, "old_block_id"); } catch (Exception ignored) {}
         try {
             long v = resultSet.getLong("item_id");
             this.itemId = resultSet.wasNull() ? null : v;
-        } catch (Exception ignored) {
-        }
-        try {
-            this.amount = resultSet.getInt("amount");
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
+        try { this.amount = resultSet.getInt("amount"); } catch (Exception ignored) {}
         try {
             String e = resultSet.getString("entity_type");
             this.entityType = resultSet.wasNull() ? null : e;
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         try {
             long k = resultSet.getLong("chunk_key");
             this.chunkKey = resultSet.wasNull() ? null : k;
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
+    }
+
+    private static Integer readNullableInt(ResultSet rs, String col) throws Exception {
+        int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
     }
 
     public LogEntry(long playerId, int actionType, int worldId, double x, double y, double z, long createdAt) {
@@ -97,11 +91,6 @@ public class LogEntry {
         this.chunkKey = chunkKeyOf(this.worldId, this.x, this.z);
     }
 
-    private static Integer readNullableInt(ResultSet rs, String col) throws Exception {
-        int v = rs.getInt(col);
-        return rs.wasNull() ? null : v;
-    }
-
     public static Long chunkKeyOf(int worldId, double x, double z) {
         int cx = ((int) Math.floor(x)) >> 4;
         int cz = ((int) Math.floor(z)) >> 4;
@@ -120,40 +109,23 @@ public class LogEntry {
         return new Location(w, x, y, z);
     }
 
-    public void setBlockId(Integer blockId) {
-        this.blockId = blockId;
-    }
-
-    public void setOldBlockId(Integer oldBlockId) {
-        this.oldBlockId = oldBlockId;
-    }
-
-    public void setItemId(Long itemId) {
-        this.itemId = itemId;
-    }
-
-    public void setAmount(Integer amount) {
-        this.amount = amount;
-    }
-
-    public void setAmountInt(int amount) {
-        this.amount = amount;
-    }
-
-    public void setEntityType(String entityType) {
-        this.entityType = entityType;
-    }
+    public void setBlockId(Integer blockId) { this.blockId = blockId; }
+    public void setOldBlockId(Integer oldBlockId) { this.oldBlockId = oldBlockId; }
+    public void setItemId(Long itemId) { this.itemId = itemId; }
+    public void setAmount(Integer amount) { this.amount = amount; }
+    public void setAmountInt(int amount) { this.amount = amount; }
+    public void setEntityType(String entityType) { this.entityType = entityType; }
 
     @Override
     public String toString() {
         return "LogEntry{" +
-                "worldId=" + worldId +
-                ", x=" + x +
-                ", y=" + y +
-                ", z=" + z +
-                ", actionType=" + actionType +
-                ", created_at=" + createdAt +
-                '}';
+            "worldId=" + worldId +
+            ", x=" + x +
+            ", y=" + y +
+            ", z=" + z +
+            ", actionType=" + actionType +
+            ", created_at=" + createdAt +
+            '}';
     }
 
     public String getDataString() {
@@ -185,6 +157,11 @@ public class LogEntry {
     @Override
     public int hashCode() {
         return Objects.hash(playerId, worldId, x, y, z, actionType, createdAt);
+    }
+
+
+    private static long normalizeCreatedAt(long value) {
+        return value > 0L && value < 100_000_000_000L ? value * 1000L : value;
     }
 
 }

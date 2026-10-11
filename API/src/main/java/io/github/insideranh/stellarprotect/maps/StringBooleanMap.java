@@ -26,7 +26,7 @@ public class StringBooleanMap {
         return h ^ (h >>> 16);
     }
 
-    public boolean get(String key) {
+    public synchronized boolean get(String key) {
         if (key == null) return false;
 
         int hash = hash(key);
@@ -43,7 +43,7 @@ public class StringBooleanMap {
         return false;
     }
 
-    public void put(String key, boolean value) {
+    public synchronized void put(String key, boolean value) {
         if (key == null) return;
         if (size >= threshold) resize();
 
@@ -86,7 +86,7 @@ public class StringBooleanMap {
         }
     }
 
-    public void remove(String key) {
+    public synchronized void remove(String key) {
         if (key == null) return;
 
         int hash = hash(key);

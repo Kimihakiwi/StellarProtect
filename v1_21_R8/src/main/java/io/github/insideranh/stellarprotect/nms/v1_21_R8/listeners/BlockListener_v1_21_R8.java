@@ -1,9 +1,7 @@
 package io.github.insideranh.stellarprotect.nms.v1_21_R8.listeners;
 
 import io.github.insideranh.stellarprotect.api.events.EventLogicHandler;
-import org.bukkit.Raid;
 import org.bukkit.block.BlockState;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -11,7 +9,6 @@ import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.entity.EntityMountEvent;
 import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
-import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.SmithItemEvent;
 import org.bukkit.event.player.PlayerUnleashEntityEvent;
 import org.bukkit.event.raid.RaidFinishEvent;
@@ -41,10 +38,6 @@ public class BlockListener_v1_21_R8 implements Listener {
         this.eventLogicHandler.onSmithEvent(event.getWhoClicked(), event.getCurrentItem());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBrewEvent(BrewEvent event) {
-        this.eventLogicHandler.onBrewEvent(event.getContents().getIngredient(), event.getContents().getFuel(), event.getResults());
-    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTotemEvent(EntityResurrectEvent event) {
@@ -53,23 +46,24 @@ public class BlockListener_v1_21_R8 implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidTriggerEvent event) {
-        Player player = event.getPlayer();
+        this.eventLogicHandler.onRaidTrigger(event.getPlayer(), event.getRaid());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidStopEvent event) {
-        Raid raid = event.getRaid();
-
+        if (event.getReason() != RaidStopEvent.Reason.FINISHED) {
+            this.eventLogicHandler.onRaidFinish(event.getRaid());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidSpawnWaveEvent event) {
-        Raid raid = event.getRaid();
+        this.eventLogicHandler.onRaidSpawn(event.getRaid());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRaid(RaidFinishEvent event) {
-        Raid raid = event.getRaid();
+        this.eventLogicHandler.onRaidFinish(event.getRaid());
     }
 
     @EventHandler

@@ -6,7 +6,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.ItemStack;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public interface EventLogicHandler {
@@ -14,8 +13,6 @@ public interface EventLogicHandler {
     void onPortalCreate(List<Block> blocks);
 
     void onSmithEvent(HumanEntity player, ItemStack result);
-
-    void onBrewEvent(@Nullable ItemStack ingredient, @Nullable ItemStack fuel, List<ItemStack> results);
 
     void onTotemEvent(Entity entity, String hand);
 

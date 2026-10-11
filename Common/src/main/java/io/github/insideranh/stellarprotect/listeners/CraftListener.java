@@ -9,6 +9,7 @@ import io.github.insideranh.stellarprotect.items.ItemReference;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
@@ -20,7 +21,7 @@ public class CraftListener implements Listener {
 
     private final StellarProtect plugin = StellarProtect.getInstance();
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCraft(CraftItemEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         ItemStack itemStack = event.getInventory().getResult();
@@ -32,12 +33,24 @@ public class CraftListener implements Listener {
         PlayerProtect playerProtect = PlayerProtect.getPlayer(player);
         if (playerProtect == null) return;
 
-        ItemReference itemReference = plugin.getItemsManager().getItemReference(itemStack);
+        if (event.isShiftClick()) {
+            ItemStack result = itemStack.clone();
+            int previous = countSimilar(player.getInventory().getContents(), result);
+            plugin.getStellarTaskHook(() -> {
+                if (!player.isOnline()) return;
+                int crafted = Math.max(0, countSimilar(player.getInventory().getContents(), result) - previous);
+                if (crafted == 0) return;
+                ItemReference reference = plugin.getItemsManager().getItemReference(result, crafted);
+                LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), reference, player.getLocation(), ActionType.CRAFT));
+            }).runTask(player.getLocation(), 1L);
+            return;
+        }
 
+        ItemReference itemReference = plugin.getItemsManager().getItemReference(itemStack);
         LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), itemReference, player.getLocation(), ActionType.CRAFT));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCraft(EnchantItemEvent event) {
         ItemStack itemStack = event.getItem();
         if (itemStack == null || itemStack.getType().equals(Material.AIR)) return;
@@ -51,6 +64,14 @@ public class CraftListener implements Listener {
         ItemReference itemReference = plugin.getItemsManager().getItemReference(itemStack);
 
         LoggerCache.addLog(new PlayerItemLogEntry(playerProtect.getPlayerId(), itemReference, player.getLocation(), ActionType.ENCHANT));
+    }
+
+    private int countSimilar(ItemStack[] items, ItemStack result) {
+        int amount = 0;
+        for (ItemStack item : items) {
+            if (item != null && item.isSimilar(result)) amount += item.getAmount();
+        }
+        return amount;
     }
 
     @EventHandler

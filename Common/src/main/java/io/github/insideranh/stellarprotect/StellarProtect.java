@@ -50,6 +50,7 @@ import io.github.insideranh.stellarprotect.restore.BlockRestore;
 import io.github.insideranh.stellarprotect.trackers.BlockTracker;
 import io.github.insideranh.stellarprotect.trackers.ChestTransactionTracker;
 import io.github.insideranh.stellarprotect.utils.UpdateChecker;
+import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.bukkit.Bukkit;
@@ -66,6 +67,7 @@ import java.util.HashSet;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
 
 @Getter
 public class StellarProtect extends JavaPlugin {
@@ -135,6 +137,7 @@ public class StellarProtect extends JavaPlugin {
 
         this.isFolia = MinecraftVersions.WILD_UPDATE.isAtLeast() && ServerVersions.isFolia();
         this.loadNMS();
+        if (this.localVersion == null) return;
 
         this.lookupExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1024)));
         this.joinExecutor = MoreExecutors.listeningDecorator(new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1024)));
@@ -196,13 +199,36 @@ public class StellarProtect extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (worldEditHook != null) {
-            worldEditHook.cleanup();
+        if (cacheManager != null) cacheManager.shutdown();
+        if (worldEditHook != null) worldEditHook.cleanup();
+
+        if (executor != null && protectDatabase != null) {
+            protectDatabase.save(LoggerCache.getFlushLogsToDatabase());
+            if (itemsManager != null) itemsManager.saveItems();
+            if (blocksManager != null) blocksManager.saveBlocks();
         }
 
-        this.protectDatabase.close();
-        this.bStats.shutdown();
+        shutdownExecutor(executor);
+        shutdownExecutor(lookupExecutor);
+        shutdownExecutor(joinExecutor);
+
+        if (protectDatabase != null) protectDatabase.close();
+        if (bStats != null) bStats.shutdown();
     }
+
+    private static void shutdownExecutor(ExecutorService executor) {
+        if (executor == null) return;
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10L, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
 
     void loadLastHooks() {
         getStellarTaskHook(() -> {
@@ -241,14 +267,14 @@ public class StellarProtect extends JavaPlugin {
 
     HashSet<Listener> getListeners() {
         return new HashSet<>(Arrays.asList(
-                new BlockFormListener(), new SignListener(),
-                new ExplodeListener(), new BucketListener(),
-                new BlockListener(), new CropGrowListener(),
-                new JoinQuitListener(), new InspectListener(),
-                new CraftListener(), new ChatListener(),
-                new PickUpDropListener(), new PlayerLogListener(),
-                new EntityListener(), new InventoryRollbackListener(),
-                new AdditionalListeners(), new InventorySnapshotListener()));
+            new BlockFormListener(), new SignListener(),
+            new ExplodeListener(), new BucketListener(),
+            new BlockListener(), new CropGrowListener(),
+            new JoinQuitListener(), new InspectListener(),
+            new CraftListener(), new ChatListener(),
+            new PickUpDropListener(), new PlayerLogListener(),
+            new EntityListener(), new InventoryRollbackListener(),
+            new AdditionalListeners(), new InventorySnapshotListener()));
     }
 
     public ProtectNMS getProtectNMS() {
@@ -316,21 +342,94 @@ public class StellarProtect extends JavaPlugin {
 
         getLogger().info("Loaded " + completer + " NMS.");
 
+        String listenerCompleter = resolveListenerNms(localVersion, resolved);
         try {
-            Listener listener = Class.forName("io.github.insideranh.stellarprotect.nms." + completer + ".listeners.BlockListener_" + completer).asSubclass(Listener.class).getConstructor(EventLogicHandler.class).newInstance(this.eventLogicHandler);
+            Listener listener = Class.forName("io.github.insideranh.stellarprotect.nms." + listenerCompleter + ".listeners.BlockListener_" + listenerCompleter).asSubclass(Listener.class).getConstructor(EventLogicHandler.class).newInstance(this.eventLogicHandler);
             getServer().getPluginManager().registerEvents(listener, this);
-        } catch (ClassNotFoundException ex) {
-            getLogger().warning("BlockListener_" + completer + " not found; using no-op.");
+        } catch (ReflectiveOperationException | LinkageError ex) {
+            getLogger().warning("BlockListener_" + listenerCompleter + " not found; using no-op.");
         }
     }
 
     private String resolveClosestNms(MinecraftVersion v) {
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_8)) return "v1_8_R3";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_9)) return "v1_9_R4";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_12)) return "v1_12_R2";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_13)) return "v1_13_R2";
-        if (v.lessThanOrEqualTo(MinecraftVersion.v1_16)) return "v1_16_R5";
-        return "v26_1_R2";
+        switch (v) {
+            case v1_8:
+                return "v1_8_R3";
+            case v1_9:
+                return "v1_9_R4";
+            case v1_10:
+            case v1_11:
+            case v1_12:
+                return "v1_12_R2";
+            case v1_13:
+                return "v1_13_R2";
+            case v1_14:
+            case v1_15:
+            case v1_16:
+                return "v1_16_R5";
+            case v1_17:
+                return "v1_17_R1";
+            case v1_18_R1:
+            case v1_18_R2:
+                return "v1_18_R2";
+            case v1_19_R1:
+            case v1_19_R2:
+            case v1_19_R3:
+                return "v1_19_R4";
+            case v1_20:
+            case v1_20_R1:
+                return "v1_20_R1";
+            case v1_20_R2:
+                return "v1_20_R2";
+            case v1_20_R3:
+                return "v1_20_R3";
+            case v1_20_R4:
+                return "v1_20_R4";
+            case v1_21:
+                return "v1_21";
+            case v1_21_R1:
+                return "v1_21_R1";
+            case v1_21_R2:
+                return "v1_21_R2";
+            case v1_21_R3:
+                return "v1_21_R3";
+            case v1_21_R4:
+                return "v1_21_R4";
+            case v1_21_R5:
+                return "v1_21_R5";
+            case v1_21_R6:
+                return "v1_21_R6";
+            case v1_21_R7:
+                return "v1_21_R7";
+            case v1_21_R8:
+                return "v1_21_R8";
+            case v1_21_R9:
+                return "v1_21_R9";
+            case v1_21_R10:
+                return "v1_21_R10";
+            case v1_21_R11:
+                return "v1_21_R11";
+            case v26_1:
+            case v26_1_R1:
+                return "v26_1_R1";
+            case v26_1_R2:
+                return "v26_1_R2";
+            case v1_22:
+            default:
+                return "v26_1_R2";
+        }
+    }
+
+    private String resolveListenerNms(MinecraftVersion v, String resolved) {
+        switch (v) {
+            case v1_10:
+                return "v1_9_R4";
+            case v1_14:
+            case v1_15:
+                return "v1_13_R2";
+            default:
+                return resolved;
+        }
     }
 
     @SneakyThrows
@@ -381,24 +480,11 @@ public class StellarProtect extends JavaPlugin {
             } catch (ClassNotFoundException | NoSuchMethodException ignored) {
             }
         }
-        try {
-            return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
-                final org.bukkit.block.data.BlockData bd = block.getBlockData();
-                final String s = bd.getAsString();
-
-                @Override
-                public String getBlockDataString() {
-                    return s;
-                }
-
-                @Override
-                public String getTypeMaterial() {
-                    return block.getType().name();
-                }
-            };
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        final String s = getProtectNMS().getBlockData(block);
+        return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
+            @Override public String getBlockDataString() { return s; }
+            @Override public String getTypeMaterial() { return block.getType().name(); }
+        };
     }
 
     @SneakyThrows
@@ -423,17 +509,11 @@ public class StellarProtect extends JavaPlugin {
             }
         }
         final String s = blockDataString;
-        final String mat = blockDataString.contains(":") ? blockDataString.substring(0, blockDataString.indexOf("[")) : blockDataString;
+        int bracket = blockDataString.indexOf('[');
+        final String mat = bracket >= 0 ? blockDataString.substring(0, bracket) : blockDataString;
         return new io.github.insideranh.stellarprotect.blocks.DataBlock() {
-            @Override
-            public String getBlockDataString() {
-                return s;
-            }
-
-            @Override
-            public String getTypeMaterial() {
-                return mat;
-            }
+            @Override public String getBlockDataString() { return s; }
+            @Override public String getTypeMaterial() { return mat; }
         };
     }
 
@@ -448,7 +528,6 @@ public class StellarProtect extends JavaPlugin {
         }
         return new io.github.insideranh.stellarprotect.entities.DataEntity() {
             final java.util.HashMap<String, Object> data = new java.util.HashMap<>();
-
             {
                 data.put("ENTITY_TYPE", entity.getType().name());
                 if (entity.getCustomName() != null) data.put("CUSTOM_NAME", entity.getCustomName());
@@ -458,14 +537,8 @@ public class StellarProtect extends JavaPlugin {
                 data.put("INVULNERABLE", entity.isInvulnerable());
                 data.put("SILENT", entity.isSilent());
             }
-
-            @Override
-            public java.util.HashMap<String, Object> getData() {
-                return data;
-            }
-
-            @Override
-            public void applyToEntity(Entity e) { /* no-op fallback */ }
+            @Override public java.util.HashMap<String, Object> getData() { return data; }
+            @Override public void applyToEntity(Entity e) { }
         };
     }
 
@@ -480,13 +553,8 @@ public class StellarProtect extends JavaPlugin {
         }
         final java.util.HashMap<String, Object> data = new java.util.HashMap<>(map);
         return new io.github.insideranh.stellarprotect.entities.DataEntity() {
-            @Override
-            public java.util.HashMap<String, Object> getData() {
-                return data;
-            }
-
-            @Override
-            public void applyToEntity(Entity e) { /* no-op fallback */ }
+            @Override public java.util.HashMap<String, Object> getData() { return data; }
+            @Override public void applyToEntity(Entity e) { }
         };
     }
 

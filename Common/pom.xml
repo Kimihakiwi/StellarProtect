@@ -21,9 +21,7 @@
         <repository>
             <id>enginehub-repo</id>
             <url>https://maven.enginehub.org/repo/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
+            <releases><enabled>true</enabled></releases>
         </repository>
         <repository>
             <id>alessiodp-repo</id>
@@ -51,10 +49,6 @@
             <url>https://repo.maven.apache.org/maven2/</url>
         </repository>
         <repository>
-            <id>matteodev</id>
-            <url>https://maven.devs.beer/</url>
-        </repository>
-        <repository>
             <id>sonatype</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </repository>
@@ -65,6 +59,11 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.36</version>
+        </dependency>
         <dependency>
             <groupId>com.github.cryptomorin</groupId>
             <artifactId>XSeries</artifactId>
@@ -95,12 +94,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
-            <groupId>dev.lone</groupId>
-            <artifactId>api-itemsadder</artifactId>
-            <version>4.0.10</version>
+            <groupId>beer.devs</groupId>
+            <artifactId>itemsadder-api</artifactId>
+            <version>4.0.17</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>net.byteflux</groupId>
             <artifactId>libby-bukkit</artifactId>
@@ -148,6 +149,7 @@
             <version>5.1.0</version>
             <scope>compile</scope>
         </dependency>
+
         <dependency>
             <groupId>io.github.insideranh.stellarprotect</groupId>
             <artifactId>API</artifactId>
@@ -310,12 +312,7 @@
             <version>1.0.0</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>io.github.insideranh.stellarprotect</groupId>
-            <artifactId>v26_1_R3</artifactId>
-            <version>1.0.0</version>
-            <scope>compile</scope>
-        </dependency>
+
         <dependency>
             <groupId>dev.folia</groupId>
             <artifactId>folia-api</artifactId>
@@ -328,20 +325,5 @@
             <version>LATEST</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>io.github.InsiderAnh.xPlayerKits</groupId>
-            <artifactId>xPlayerKits</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/xPlayerKits.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>pl.norbit.treecuter</groupId>
-            <artifactId>treecuter</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/TreeCuter.jar</systemPath>
-        </dependency>
     </dependencies>
-
 </project>

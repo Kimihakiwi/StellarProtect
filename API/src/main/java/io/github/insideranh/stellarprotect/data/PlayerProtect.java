@@ -1,21 +1,20 @@
 package io.github.insideranh.stellarprotect.data;
 
-import io.github.insideranh.stellarprotect.maps.ObjectLongMap;
-import io.github.insideranh.stellarprotect.maps.ObjectObjectMap;
 import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
 @Getter
 @Setter
 public class PlayerProtect {
 
-    private static final ObjectObjectMap<UUID, PlayerProtect> players = new ObjectObjectMap<>(120);
-    private static final ObjectLongMap<String> nameToIdCache = new ObjectLongMap<>(120);
+    private static final ConcurrentHashMap<UUID, PlayerProtect> players = new ConcurrentHashMap<>(120);
+    private static final ConcurrentHashMap<String, Long> nameToIdCache = new ConcurrentHashMap<>(120);
 
     private final long playerId;
     private final UUID uuid;
@@ -60,7 +59,7 @@ public class PlayerProtect {
         UUID uuid = player.getUniqueId();
         PlayerProtect removed = players.remove(uuid);
         if (removed != null) {
-            nameToIdCache.removeLong(removed.name);
+            nameToIdCache.remove(removed.name);
         }
         return removed;
     }
@@ -68,9 +67,8 @@ public class PlayerProtect {
     public static long getPlayerId(String name) {
         String lowerName = name.toLowerCase();
 
-        if (nameToIdCache.containsKey(lowerName)) {
-            return nameToIdCache.getLong(lowerName);
-        }
+        Long cached = nameToIdCache.get(lowerName);
+        if (cached != null) return cached;
 
         for (PlayerProtect playerProtect : players.values()) {
             if (playerProtect.name.equals(lowerName)) {

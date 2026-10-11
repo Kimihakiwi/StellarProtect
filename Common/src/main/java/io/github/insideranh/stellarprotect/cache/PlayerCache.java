@@ -11,6 +11,7 @@ import io.github.insideranh.stellarprotect.enums.SuspiciousType;
 import io.github.insideranh.stellarprotect.managers.ConfigManager;
 import io.github.insideranh.stellarprotect.utils.PlayerUtils;
 import org.bukkit.entity.Player;
+import org.bukkit.Bukkit;
 
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -23,7 +24,7 @@ public class PlayerCache {
     private static final Map<Long, String> playerNames = new HashMap<>();
     private static final Map<Long, EnumMap<ActionType, PatternValue>> patterns = new HashMap<>();
 
-    public static void checkPattern(LogEntry logEntry) {
+    public synchronized static void checkPattern(LogEntry logEntry) {
         if (!configManager.isSuspiciousPatterns()) return;
 
         TpaSuspiciousConfig config = getTPAConfig();
@@ -41,16 +42,16 @@ public class PlayerCache {
         if (!config.getCheckCommands().contains(command)) return;
 
         patterns
-                .computeIfAbsent(entry.getPlayerId(), k -> new EnumMap<>(ActionType.class))
-                .put(ActionType.COMMAND, new PatternValue(entry, System.currentTimeMillis()));
+            .computeIfAbsent(entry.getPlayerId(), k -> new EnumMap<>(ActionType.class))
+            .put(ActionType.COMMAND, new PatternValue(entry, System.currentTimeMillis()));
     }
 
     private static void handleKill(PlayerDeathEntry entry) {
         if (entry.getActionType() != ActionType.DEATH.getId()) return;
 
         patterns
-                .computeIfAbsent(entry.getPlayerId(), k -> new EnumMap<>(ActionType.class))
-                .put(ActionType.DEATH, new PatternValue(entry, System.currentTimeMillis()));
+            .computeIfAbsent(entry.getPlayerId(), k -> new EnumMap<>(ActionType.class))
+            .put(ActionType.DEATH, new PatternValue(entry, System.currentTimeMillis()));
 
         checkTPAKill(entry.getPlayerId());
     }
@@ -72,43 +73,48 @@ public class PlayerCache {
     }
 
     private static void notifyPlayers(long playerId, PlayerCommandEntry commandEntry, TpaSuspiciousConfig config) {
-        StellarProtect plugin = StellarProtect.getInstance();
-        String playerName = getName(playerId);
+        final String playerName = getName(playerId);
+        final Function<String, String> replacer = text -> text
+            .replace("<player>", playerName)
+            .replace("<command>", commandEntry.getCommand())
+            .replace("<death>", playerName);
+        StellarProtect.getInstance().getStellarTaskHook(() -> notifyGlobal(
+            config.getPermission(), config.getMessage(), config.getTooltip(), "/tp " + playerName, replacer
+        )).runGlobal();
+    }
 
-        Function<String, String> replacer = text -> text
-                .replace("<player>", playerName)
-                .replace("<command>", commandEntry.getCommand())
-                .replace("<death>", playerName);
-
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (!player.hasPermission(config.getPermission())) continue;
-
-            plugin.getProtectNMS().sendActionTitle(
-                    player,
-                    config.getMessage(),
-                    config.getTooltip(),
-                    "/tp " + playerName,
-                    replacer
-            );
+    private static void notifyGlobal(String permission, String message, String tooltip, String command,
+                                         Function<String, String> replacer) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            StellarProtect.getInstance().getStellarTaskHook(
+                () -> notifyPlayer(player, permission, message, tooltip, command, replacer)
+            ).runEntity(player);
         }
     }
 
-    private static TpaSuspiciousConfig getTPAConfig() {
-        return (TpaSuspiciousConfig) StellarProtect.getInstance()
-                .getConfigManager()
-                .getPatternConfig(SuspiciousType.TPA_KILL);
+    private static void notifyPlayer(Player player, String permission, String message, String tooltip, String command,
+                                         Function<String, String> replacer) {
+        if (!player.hasPermission(permission)) return;
+        StellarProtect.getInstance().getProtectNMS().sendActionTitle(player, message, tooltip, command, replacer);
     }
 
-    public static void cacheName(long playerId, String name) {
+
+    private static TpaSuspiciousConfig getTPAConfig() {
+        return (TpaSuspiciousConfig) StellarProtect.getInstance()
+            .getConfigManager()
+            .getPatternConfig(SuspiciousType.TPA_KILL);
+    }
+
+    public synchronized static void cacheName(long playerId, String name) {
         playerNames.put(playerId, name);
     }
 
-    public static void removeCacheName(long playerId) {
+    public synchronized static void removeCacheName(long playerId) {
         playerNames.remove(playerId);
         patterns.remove(playerId);
     }
 
-    public static String getName(long playerId) {
+    public synchronized static String getName(long playerId) {
         if (playerId == -1L) {
             return "Console";
         }

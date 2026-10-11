@@ -1,33 +1,26 @@
-package io.github.insideranh.stellarprotect.nms.v26_1_R3.listeners;
+package io.github.insideranh.stellarprotect.nms.v1_19_R4.listeners;
 
 import io.github.insideranh.stellarprotect.api.events.EventLogicHandler;
-import org.bukkit.Raid;
 import org.bukkit.block.BlockState;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDismountEvent;
-import org.bukkit.event.entity.EntityMountEvent;
 import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.PlayerLeashEntityEvent;
-import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.SmithItemEvent;
 import org.bukkit.event.player.PlayerUnleashEntityEvent;
-import org.bukkit.event.raid.RaidFinishEvent;
-import org.bukkit.event.raid.RaidSpawnWaveEvent;
-import org.bukkit.event.raid.RaidStopEvent;
-import org.bukkit.event.raid.RaidTriggerEvent;
 import org.bukkit.event.world.PortalCreateEvent;
+import org.spigotmc.event.entity.EntityDismountEvent;
+import org.spigotmc.event.entity.EntityMountEvent;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
-public class BlockListener_v26_1_R3 implements Listener {
+public class BlockListener_v1_19_R4 implements Listener {
 
     private final EventLogicHandler eventLogicHandler;
 
-    public BlockListener_v26_1_R3(EventLogicHandler eventLogicHandler) {
+    public BlockListener_v1_19_R4(EventLogicHandler eventLogicHandler) {
         this.eventLogicHandler = eventLogicHandler;
     }
 
@@ -38,38 +31,13 @@ public class BlockListener_v26_1_R3 implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSmithEvent(SmithItemEvent event) {
-        this.eventLogicHandler.onSmithEvent(event.getWhoClicked(), event.getCurrentItem());
+        this.eventLogicHandler.onSmithEvent(event.getWhoClicked(), event.getInventory().getResult());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBrewEvent(BrewEvent event) {
-        this.eventLogicHandler.onBrewEvent(event.getContents().getIngredient(), event.getContents().getFuel(), event.getResults());
-    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTotemEvent(EntityResurrectEvent event) {
         this.eventLogicHandler.onTotemEvent(event.getEntity(), event.getHand() == null ? "" : event.getHand().name());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onRaid(RaidTriggerEvent event) {
-        Player player = event.getPlayer();
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onRaid(RaidStopEvent event) {
-        Raid raid = event.getRaid();
-
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onRaid(RaidSpawnWaveEvent event) {
-        Raid raid = event.getRaid();
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onRaid(RaidFinishEvent event) {
-        Raid raid = event.getRaid();
     }
 
     @EventHandler

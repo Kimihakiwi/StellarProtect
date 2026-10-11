@@ -1,11 +1,16 @@
 package io.github.insideranh.stellarprotect.commands.arguments;
 
 import io.github.insideranh.stellarprotect.StellarProtect;
-import io.github.insideranh.stellarprotect.arguments.*;
+import io.github.insideranh.stellarprotect.arguments.ArgumentsParser;
+import io.github.insideranh.stellarprotect.arguments.DatabaseFilters;
+import io.github.insideranh.stellarprotect.arguments.HashTagsArg;
+import io.github.insideranh.stellarprotect.arguments.RadiusArg;
+import io.github.insideranh.stellarprotect.arguments.TimeArg;
 import io.github.insideranh.stellarprotect.cache.keys.LocationCache;
 import io.github.insideranh.stellarprotect.commands.StellarArgument;
 import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.LogEntry;
+import io.github.insideranh.stellarprotect.database.entries.players.PlayerInventorySnapshotEntry;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerItemLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import org.bukkit.Location;
@@ -56,48 +61,61 @@ public class ItemRestoreArgument extends StellarArgument {
             filters.setMaxAmount(ArgumentsParser.parseMaxAmount(arguments));
 
             plugin.getProtectDatabase().getRestoreActions(filters, 0, 10000).thenAccept(cb -> {
-                int restored = 0;
-                int dropped = 0;
-                for (Map.Entry<LocationCache, Set<LogEntry>> entry : cb.getLogs().entrySet()) {
-                    for (LogEntry log : entry.getValue()) {
-                        if (!(log instanceof PlayerItemLogEntry)) continue;
-                        PlayerItemLogEntry itemLog = (PlayerItemLogEntry) log;
-                        ItemStack stack = plugin.getItemsManager().getItemTemplate(itemLog.getItemReferenceId()).getBukkitItem().clone();
-                        if (stack == null) continue;
-                        stack.setAmount(itemLog.getAmount());
-
-                        if (isUndoOf(itemLog, hashTagsArg)) {
-                            dropped += giveOrDrop(player, stack, false);
-                        } else {
-                            restored += giveOrDrop(player, stack, true);
-                        }
+                List<PlayerItemLogEntry> itemLogs = new ArrayList<>();
+                for (Set<LogEntry> locationLogs : cb.getLogs().values()) {
+                    for (LogEntry log : locationLogs) {
+                        if (log instanceof PlayerItemLogEntry) itemLogs.add((PlayerItemLogEntry) log);
                     }
                 }
-                player.sendMessage("§aRestaurados: §f" + restored + " §7items.");
-                player.sendMessage("§eDevueltos al suelo: §f" + dropped);
+                boolean remove = hashTagsArg.isUndoMode() || hashTagsArg.isRedo();
+                plugin.getStellarTaskHook(() -> restoreBatch(player, itemLogs, 0, 0, 0, remove)).runEntity(player);
             });
         });
     }
 
-    private int giveOrDrop(Player player, ItemStack stack, boolean give) {
-        PlayerInventory inv = player.getInventory();
-        HashMap<Integer, ItemStack> leftover;
-        if (give) {
-            leftover = inv.addItem(stack);
-        } else {
-            leftover = new HashMap<>();
-            leftover.put(0, stack);
-            leftover = inv.removeItem(stack);
+    private void restoreBatch(Player player, List<PlayerItemLogEntry> logs, int offset, int restored, int removed, boolean remove) {
+        if (!player.isOnline()) return;
+        int end = Math.min(logs.size(), offset + 64);
+        for (int i = offset; i < end; i++) {
+            PlayerItemLogEntry log = logs.get(i);
+            try {
+                var template = plugin.getItemsManager().getItemTemplate(log.getItemReferenceId());
+                if (template == null || template.getBukkitItem() == null) continue;
+                ItemStack stack = template.getBukkitItem().clone();
+                stack.setAmount(log.getAmount());
+                int changed = giveOrRemove(player, stack, !remove);
+                if (remove) removed += changed;
+                else restored += changed;
+            } catch (RuntimeException exception) {
+                plugin.getLogger().warning("Failed to restore item " + log.getItemReferenceId() + ": " + exception.getMessage());
+            }
         }
-        Location loc = player.getLocation();
-        for (ItemStack drop : leftover.values()) {
-            player.getWorld().dropItemNaturally(loc, drop);
+        if (end < logs.size()) {
+            int given = restored;
+            int taken = removed;
+            plugin.getStellarTaskHook(() -> restoreBatch(player, logs, end, given, taken, remove)).runEntity(player);
+            return;
         }
-        return stack.getAmount();
+        player.sendMessage("§aRestaurados: §f" + restored + " §7items.");
+        player.sendMessage("§eDevueltos al suelo: §f" + removed);
     }
 
-    private boolean isUndoOf(LogEntry log, HashTagsArg hashTagsArg) {
-        return hashTagsArg.isUndoMode() || hashTagsArg.isRedo();
+    private int giveOrRemove(Player player, ItemStack stack, boolean give) {
+        int requested = stack.getAmount();
+        PlayerInventory inventory = player.getInventory();
+        HashMap<Integer, ItemStack> remaining;
+        if (give) {
+            remaining = inventory.addItem(stack.clone());
+            Location location = player.getLocation();
+            for (ItemStack leftover : remaining.values()) {
+                player.getWorld().dropItemNaturally(location, leftover);
+            }
+            return requested;
+        }
+        remaining = inventory.removeItem(stack.clone());
+        int notRemoved = 0;
+        for (ItemStack leftover : remaining.values()) notRemoved += leftover.getAmount();
+        return Math.max(0, requested - notRemoved);
     }
 
     @Override

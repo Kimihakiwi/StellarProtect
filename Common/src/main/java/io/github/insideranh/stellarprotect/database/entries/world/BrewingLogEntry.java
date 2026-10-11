@@ -5,9 +5,9 @@ import io.github.insideranh.stellarprotect.StellarProtect;
 import io.github.insideranh.stellarprotect.database.entries.LogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import io.github.insideranh.stellarprotect.items.ItemReference;
-import io.github.insideranh.stellarprotect.utils.PlayerUtils;
 import lombok.Getter;
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -28,14 +28,14 @@ public class BrewingLogEntry extends LogEntry {
         this.resultId = jsonObject.has("r") ? jsonObject.get("r").getAsLong() : -1L;
         this.amount = jsonObject.has("a") ? jsonObject.get("a").getAsInt() : 1;
         setAmount(this.amount);
-        if (this.resultId > 0) setItemId(this.resultId);
+        if (this.resultId != null && this.resultId > 0) setItemId(this.resultId);
     }
 
     public BrewingLogEntry(Player player, ItemStack ingredient, ItemStack fuel, ItemStack result) {
-        super(player != null ? PlayerUtils.getPlayerOrConsoleId(player) : -2L,
-                ActionType.BREWING.getId(),
-                player != null ? player.getLocation() : new Location(null, 0, 0, 0),
-                System.currentTimeMillis());
+        super(player != null ? io.github.insideranh.stellarprotect.utils.PlayerUtils.getPlayerOrConsoleId(player) : -2L,
+            ActionType.BREWING.getId(),
+            player != null ? player.getLocation() : new Location(null, 0, 0, 0),
+            System.currentTimeMillis());
         long ingId = -1L;
         long fId = -1L;
         long rId = -1L;
@@ -67,6 +67,28 @@ public class BrewingLogEntry extends LogEntry {
         obj.addProperty("r", resultId);
         obj.addProperty("a", amount);
         return obj.toString();
+    }
+
+
+    public BrewingLogEntry(Location location, ItemStack ingredient,
+                           ItemStack fuel, ItemStack result) {
+        super(-2L, ActionType.BREWING.getId(), location, System.currentTimeMillis());
+        long ingredientId = -1L;
+        long fuelId = -1L;
+        long resultId = -1L;
+        StellarProtect plugin = StellarProtect.getInstance();
+        if (ingredient != null && ingredient.getType() != org.bukkit.Material.AIR)
+            ingredientId = plugin.getItemsManager().getItemReference(ingredient).getTemplateId();
+        if (fuel != null && fuel.getType() != org.bukkit.Material.AIR)
+            fuelId = plugin.getItemsManager().getItemReference(fuel).getTemplateId();
+        if (result != null && result.getType() != org.bukkit.Material.AIR)
+            resultId = plugin.getItemsManager().getItemReference(result).getTemplateId();
+        this.ingredientId = ingredientId;
+        this.fuelId = fuelId;
+        this.resultId = resultId;
+        this.amount = result == null ? 1 : result.getAmount();
+        setItemId(resultId);
+        setAmount(this.amount);
     }
 
 }

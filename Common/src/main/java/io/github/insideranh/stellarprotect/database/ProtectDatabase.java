@@ -8,6 +8,14 @@ import io.github.insideranh.stellarprotect.callback.CallbackLookup;
 import io.github.insideranh.stellarprotect.data.PlayerProtect;
 import io.github.insideranh.stellarprotect.database.entries.LogEntry;
 import io.github.insideranh.stellarprotect.database.entries.QueuedLog;
+import io.github.insideranh.stellarprotect.database.entries.players.PlayerTransactionEntry;
+import io.github.insideranh.stellarprotect.enums.ActionType;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import io.github.insideranh.stellarprotect.database.entries.items.ItemLogEntry;
 import io.github.insideranh.stellarprotect.database.repositories.DatabaseConnection;
 import io.github.insideranh.stellarprotect.database.types.MySQLConnection;
@@ -15,6 +23,7 @@ import io.github.insideranh.stellarprotect.database.types.SQLConnection;
 import io.github.insideranh.stellarprotect.database.types.SQLQueueConnection;
 import io.github.insideranh.stellarprotect.items.ItemTemplate;
 import io.github.insideranh.stellarprotect.utils.Debugger;
+import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import lombok.NonNull;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -24,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.UUID;
 
 public class ProtectDatabase {
 
@@ -57,8 +67,10 @@ public class ProtectDatabase {
     }
 
     public void close() {
-        this.databaseConnection.close();
+        if (this.databaseConnection != null) this.databaseConnection.close();
+        if (this.temporalConnection != null) this.temporalConnection.close();
     }
+
 
     public void clearOldLogs() {
         this.databaseConnection.getLoggerRepository().clearOldLogs();
@@ -125,50 +137,98 @@ public class ProtectDatabase {
         this.databaseConnection.getBlocksRepository().saveBlocks(blockTemplates);
     }
 
+    private final AtomicBoolean queueProcessing = new AtomicBoolean();
+    private final AtomicBoolean queueDeletionFailed = new AtomicBoolean();
+
     public void processQueueLogs() {
-        stellarProtect.getLookupExecutor().execute(() -> {
-            try {
-                int batchSize = stellarProtect.getConfigManager().getBatchQueueSize();
-                List<QueuedLog> queuedLogs = temporalConnection.getLogs(batchSize);
+        if (queueDeletionFailed.get() || !queueProcessing.compareAndSet(false, true)) return;
+        try {
+            stellarProtect.getLookupExecutor().execute(() -> {
+                try {
+                    int batchSize = stellarProtect.getConfigManager().getBatchQueueSize();
+                    List<QueuedLog> queuedLogs = temporalConnection.getLogs(batchSize);
+                    if (queuedLogs.isEmpty()) return;
 
-                if (queuedLogs.isEmpty()) {
-                    return;
-                }
-
-                Debugger.debugSave("Processing " + queuedLogs.size() + " logs from queue...");
-
-                List<LogEntry> logEntries = new java.util.ArrayList<>();
-                for (QueuedLog queuedLog : queuedLogs) {
-                    LogEntry logEntry = new LogEntry(
-                            queuedLog.getPlayerId(),
-                            queuedLog.getActionType(),
-                            queuedLog.getWorldId(),
-                            queuedLog.getX(),
-                            queuedLog.getY(),
-                            queuedLog.getZ(),
-                            queuedLog.getCreatedAt()
-                    );
-
-                    if (queuedLog.getExtraJson() != null && !queuedLog.getExtraJson().isEmpty()) {
-                        logEntry.setForcedJson(queuedLog.getExtraJson());
+                    List<LogEntry> entries = new java.util.ArrayList<>(queuedLogs.size());
+                    for (QueuedLog queued : queuedLogs) {
+                        LogEntry entry;
+                        if (queued.getActionType() == ActionType.INVENTORY_TRANSACTION.getId() && queued.getExtraJson() != null) {
+                            JsonObject json = new JsonParser().parse(queued.getExtraJson()).getAsJsonObject();
+                            Map<Long, Integer> added = readTransactionItems(json, "ai");
+                            Map<Long, Integer> removed = readTransactionItems(json, "ri");
+                            entry = new PlayerTransactionEntry(queued.getPlayerId(), added, removed,
+                                queued.getWorldId(), queued.getX(), queued.getY(), queued.getZ(), queued.getCreatedAt());
+                        } else {
+                            entry = new LogEntry(queued.getPlayerId(), queued.getActionType(), queued.getWorldId(),
+                                queued.getX(), queued.getY(), queued.getZ(), queued.getCreatedAt());
+                        }
+                        entry.setRestored(queued.isRestored());
+                        entry.setBlockId(queued.getBlockId());
+                        entry.setOldBlockId(queued.getOldBlockId());
+                        entry.setItemId(queued.getItemId());
+                        if (queued.getAmount() != null) entry.setAmount(queued.getAmount());
+                        if (queued.getItemId() == null && isItemAction(queued.getActionType()) && queued.getExtraJson() != null) {
+                            JsonObject itemJson = new JsonParser().parse(queued.getExtraJson()).getAsJsonObject();
+                            if (itemJson.has("id")) entry.setItemId(itemJson.get("id").getAsLong());
+                            else if (itemJson.has("it64")) entry.setItemId(itemJson.get("it64").getAsLong());
+                            if (queued.getAmount() == null && itemJson.has("a")) entry.setAmount(itemJson.get("a").getAsInt());
+                        }
+                        entry.setEntityType(queued.getEntityType());
+                        if (queued.getExtraJson() != null) entry.setForcedJson(queued.getExtraJson());
+                        entries.add(entry);
                     }
 
-                    logEntries.add(logEntry);
-                }
-
-                databaseConnection.getLoggerRepository().save(logEntries);
-
-                if (!queuedLogs.isEmpty()) {
+                    if (!databaseConnection.getLoggerRepository().saveQueuedBatch(entries)) {
+                        stellarProtect.getLogger().warning("Recovery queue batch was not committed; retained for retry");
+                        return;
+                    }
                     long maxId = queuedLogs.get(queuedLogs.size() - 1).getId();
-                    temporalConnection.deleteProcessedLogs(maxId);
+                    boolean deleted = temporalConnection.deleteProcessedLogs(maxId).get();
+                    if (!deleted) {
+                        queueDeletionFailed.set(true);
+                        stellarProtect.getLogger().severe("Recovery queue deletion failed after database commit; processing paused to prevent immediate replay");
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    stellarProtect.getLogger().warning("Recovery queue processing interrupted");
+                } catch (Exception exception) {
+                    stellarProtect.getLogger().warning("Error processing queue logs: " + exception.getMessage());
+                } finally {
+                    queueProcessing.set(false);
                 }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException exception) {
+            queueProcessing.set(false);
+            stellarProtect.getLogger().warning("Recovery queue executor is unavailable");
+        }
+    }
 
-                Debugger.debugSave("Successfully processed " + queuedLogs.size() + " logs from queue");
-            } catch (Exception e) {
-                stellarProtect.getLogger().warning("Error processing queue logs: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
+    private boolean isItemAction(int id) {
+        return id == ActionType.DROP_ITEM.getId()
+            || id == ActionType.PICKUP_ITEM.getId()
+            || id == ActionType.FURNACE_EXTRACT.getId()
+            || id == ActionType.CRAFT.getId()
+            || id == ActionType.ENCHANT.getId()
+            || id == ActionType.SMITH.getId()
+            || id == ActionType.CONSUME.getId();
+    }
+
+    private Map<Long, Integer> readTransactionItems(JsonObject json, String key) {
+        Map<Long, Integer> items = new HashMap<>();
+        if (!json.has(key) || !json.get(key).isJsonObject()) return items;
+        for (Map.Entry<String, JsonElement> item : json.getAsJsonObject(key).entrySet()) {
+            items.put(Long.parseLong(item.getKey()), item.getValue().getAsInt());
+        }
+        return items;
+    }
+
+    public PlayerProtect loadOrCreatePlayer(UUID uuid, String name) {
+        return databaseConnection.getPlayerRepository().loadOrCreatePlayer(uuid, name);
+    }
+
+    public void flushLogsSync() {
+        List<LogEntry> logs = LoggerCache.getFlushLogsToDatabase();
+        if (!logs.isEmpty()) databaseConnection.getLoggerRepository().saveSync(logs);
     }
 
 }
