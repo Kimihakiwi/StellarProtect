@@ -12,6 +12,22 @@ for performance.**
 > StellarProtect is an active and growing project — your suggestions, bug reports, and reviews are welcome.  
 > Thank you for supporting **StellarProtect**!
 
+---
+
+# A New Chapter
+
+Special Thanks to the Original Developer
+
+This project will soon transition to a new plugin developed from a fork of StellarProtect.
+
+First and foremost, I would like to express my sincere gratitude to the original developer for creating such an incredible plugin.
+
+Your source code has been an invaluable reference and a solid foundation for developing this new project. Thanks to your work, I was able to take the first steps toward creating something new and building upon what you've accomplished.
+
+Thank you for your dedication, hard work, and contributions to the open-source community.
+
+---
+
 # Unofficial Fork Notice
 
 > **This project is an unofficial fork of the original plugin.**
