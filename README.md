@@ -18,7 +18,7 @@ for performance.**
 
 ## Special Thanks to the Original Developer
 
-This project will soon transition to a new plugin developed from a fork of StellarProtect.
+> This project will soon transition to a new plugin developed from a fork of StellarProtect.
 
 First and foremost, I would like to express my sincere gratitude to the original developer for creating such an incredible plugin.
 
