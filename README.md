@@ -16,7 +16,7 @@ for performance.**
 
 # A New Chapter
 
-Special Thanks to the Original Developer
+## Special Thanks to the Original Developer
 
 This project will soon transition to a new plugin developed from a fork of StellarProtect.
 
