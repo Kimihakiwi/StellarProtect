@@ -22,6 +22,7 @@ import java.util.concurrent.Executors;
 public class SQLQueueConnection {
 
     private final StellarProtect stellarProtect = StellarProtect.getInstance();
+    private volatile String queueId;
     private final ExecutorService singleThreadExecutor = Executors.newSingleThreadExecutor();
     private Connection connection;
     private PreparedStatement insertStatement;
@@ -52,6 +53,17 @@ public class SQLQueueConnection {
             }
 
             try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("CREATE TABLE IF NOT EXISTS stellarprotect_queue_identity (id INTEGER PRIMARY KEY, token TEXT NOT NULL)");
+                try (ResultSet identity = statement.executeQuery("SELECT token FROM stellarprotect_queue_identity WHERE id = 1")) {
+                    if (identity.next()) queueId = identity.getString(1);
+                }
+                if (queueId == null) {
+                    queueId = java.util.UUID.randomUUID().toString();
+                    try (PreparedStatement createIdentity = connection.prepareStatement("INSERT INTO stellarprotect_queue_identity (id, token) VALUES (1, ?)")) {
+                        createIdentity.setString(1, queueId);
+                        createIdentity.executeUpdate();
+                    }
+                }
                 String logEntriesTable = stellarProtect.getConfigManager().getTablesLogEntries();
 
                 statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + logEntriesTable + " (" +
@@ -156,6 +168,29 @@ public class SQLQueueConnection {
                 }
             }
         });
+    }
+
+    public String getQueueId() {
+        return queueId;
+    }
+
+    public long countPendingLogs() {
+        try {
+            return singleThreadExecutor.submit(() -> {
+                try (Statement statement = connection.createStatement();
+                     ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + stellarProtect.getConfigManager().getTablesLogEntries())) {
+                    return result.next() ? result.getLong(1) : -1L;
+                } catch (SQLException exception) {
+                    stellarProtect.getLogger().warning("Failed to count recovery queue: " + exception.getMessage());
+                    return -1L;
+                }
+            }).get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return -1L;
+        } catch (Exception exception) {
+            return -1L;
+        }
     }
 
     public List<QueuedLog> getLogs(int maxLogs) {

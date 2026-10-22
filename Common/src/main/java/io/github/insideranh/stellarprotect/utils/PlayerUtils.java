@@ -58,6 +58,10 @@ public class PlayerUtils {
         specialIds.put("=wither_skull", -33L);
         specialIds.put("=minecart_tnt", -34L);
         specialIds.put("=fireball", -35L);
+        specialIds.put("=hopper", -36L);
+        specialIds.put("=dropper", -37L);
+        specialIds.put("=crafter", -38L);
+        specialIds.put("=allay", -39L);
 
         specialIds.put("=worldedit", -1000L);
     }

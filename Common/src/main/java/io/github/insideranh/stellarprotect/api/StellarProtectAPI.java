@@ -1,6 +1,13 @@
 package io.github.insideranh.stellarprotect.api;
 
 import io.github.insideranh.stellarprotect.StellarProtect;
+import io.github.insideranh.stellarprotect.arguments.DatabaseFilters;
+import io.github.insideranh.stellarprotect.callback.CallbackLookup;
+import io.github.insideranh.stellarprotect.cache.keys.LocationCache;
+import io.github.insideranh.stellarprotect.database.entries.LogEntry;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import io.github.insideranh.stellarprotect.data.InspectSession;
 import io.github.insideranh.stellarprotect.data.PlayerProtect;
@@ -19,6 +26,20 @@ import org.bukkit.event.player.PlayerInteractEvent;
 public class StellarProtectAPI {
 
     private static final StellarProtect plugin = StellarProtect.getInstance();
+
+    public static CompletableFuture<CallbackLookup<Map<LocationCache, Set<LogEntry>>, Long>> lookup(DatabaseFilters filters, int skip, int limit) {
+        if (filters == null || skip < 0 || limit < 1 || limit > 10000) {
+            CompletableFuture<CallbackLookup<Map<LocationCache, Set<LogEntry>>, Long>> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalArgumentException("Invalid lookup arguments"));
+            return failed;
+        }
+        return plugin.getProtectDatabase().getLogs(filters, true, skip, limit);
+    }
+
+    public static void logCustom(LogEntry entry) {
+        if (entry == null) throw new IllegalArgumentException("Log entry cannot be null");
+        LoggerCache.addLog(entry);
+    }
 
     public static void logPlace(Player player, Block block, boolean ignoreSkip) {
         if (ignoreSkip || ActionType.BLOCK_PLACE.shouldSkipLog(block.getWorld().getName(), block.getType().name()))

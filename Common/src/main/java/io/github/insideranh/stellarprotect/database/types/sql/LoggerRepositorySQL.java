@@ -169,6 +169,7 @@ public class LoggerRepositorySQL implements LoggerRepository {
 
         try {
             stellarProtect.getExecutor().execute(() -> {
+                        synchronized (LoggerRepositorySQL.this) {
                         try {
                             connection.setAutoCommit(false);
 
@@ -215,21 +216,25 @@ public class LoggerRepositorySQL implements LoggerRepository {
 
                                 saveInventoryTxns(txnEntries);
                                 connection.commit();
+                                stellarProtect.getProtectDatabase().recordSuccessfulSave();
 
                             } catch (Exception e) {
                                 connection.rollback();
-                                Debugger.debugSave("Failed to save log entries. Trying again...");
+                                stellarProtect.getProtectDatabase().recordFailedSave();
+                                warnSaveFailure(e);
                     stellarProtect.getProtectDatabase().saveQueue(logEntries);
                             } finally {
                                 connection.setAutoCommit(true);
                             }
 
                         } catch (Exception e) {
-                            Debugger.debugSave("Failed to save log entries. Trying again...");
+                            stellarProtect.getProtectDatabase().recordFailedSave();
+                            warnSaveFailure(e);
                     stellarProtect.getProtectDatabase().saveQueue(logEntries);
                         }
 
-                        Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                        Debugger.debugSave("Finished processing " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                        }
                     });
         } catch (java.util.concurrent.RejectedExecutionException rejected) {
             stellarProtect.getProtectDatabase().saveQueue(logEntries);
@@ -927,15 +932,44 @@ public class LoggerRepositorySQL implements LoggerRepository {
 
     @Override
     public synchronized boolean saveQueuedBatch(List<LogEntry> logEntries) {
+        return saveBatch(logEntries, null, null);
+    }
+
+    @Override
+    public synchronized boolean saveRecoveryBatch(List<LogEntry> logEntries, List<Long> queueIds, String queueId) {
+        if (queueId == null || queueIds == null || queueIds.size() != logEntries.size()) return false;
+        return saveBatch(logEntries, queueIds, queueId);
+    }
+
+    private synchronized boolean saveBatch(List<LogEntry> logEntries, List<Long> queueIds, String queueId) {
         long start = System.currentTimeMillis();
         Debugger.debugSave("Saving log entries...");
     try {
                     connection.setAutoCommit(false);
+                    List<LogEntry> pending = logEntries;
+                    if (queueIds != null) {
+                        long lastCommitted = 0L;
+                        try (PreparedStatement checkpoint = connection.prepareStatement("SELECT last_id FROM " + stellarProtect.getConfigManager().getTablesPrefix() + "replay_progress WHERE queue_id = ?")) {
+                            checkpoint.setString(1, queueId);
+                            try (ResultSet checkpointResult = checkpoint.executeQuery()) {
+                                if (checkpointResult.next()) lastCommitted = checkpointResult.getLong(1);
+                            }
+                        }
+                        pending = new java.util.ArrayList<>(logEntries.size());
+                        for (int q = 0; q < queueIds.size(); q++) {
+                            if (queueIds.get(q) > lastCommitted) pending.add(logEntries.get(q));
+                        }
+                        if (pending.isEmpty()) {
+                            connection.commit();
+                            connection.setAutoCommit(true);
+                            return true;
+                        }
+                    }
 
                     try (PreparedStatement playerStmt = connection.prepareStatement(
                         "INSERT INTO " + stellarProtect.getConfigManager().getTablesLogEntries() + " (player_id, world_id, x, y, z, action_type, restored, extra_json, created_at, block_id, old_block_id, item_id, amount, entity_type, chunk_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     , Statement.RETURN_GENERATED_KEYS)) {
-                        for (LogEntry playerLog : logEntries) {
+                        for (LogEntry playerLog : pending) {
                             String extraJson = playerLog.toSaveJson();
 
                             playerStmt.setLong(1, playerLog.getPlayerId());
@@ -965,32 +999,56 @@ public class LoggerRepositorySQL implements LoggerRepository {
                                     if (!keyResult.next()) throw new SQLException("Missing last inserted log ID");
                                     lastLogId = keyResult.getLong(1);
                                 }
-                                for (int index = 0; index < logEntries.size(); index++) {
-                                    LogEntry log = logEntries.get(index);
+                                for (int index = 0; index < pending.size(); index++) {
+                                    LogEntry log = pending.get(index);
                                     if (log instanceof PlayerTransactionEntry) {
-                                        long logId = lastLogId - (logEntries.size() - 1L - index);
+                                        long logId = lastLogId - (pending.size() - 1L - index);
                                         txnEntries.put((PlayerTransactionEntry) log, logId);
                                     }
                                 }
 
                         saveInventoryTxns(txnEntries);
+                        if (queueIds != null) {
+                            try (PreparedStatement checkpointUpdate = connection.prepareStatement("INSERT INTO " + stellarProtect.getConfigManager().getTablesPrefix() + "replay_progress (queue_id, last_id) VALUES (?, ?) ON CONFLICT(queue_id) DO UPDATE SET last_id = MAX(last_id, excluded.last_id)")) {
+                                checkpointUpdate.setString(1, queueId);
+                                checkpointUpdate.setLong(2, queueIds.get(queueIds.size() - 1));
+                                checkpointUpdate.executeUpdate();
+                            }
+                        }
                         connection.commit();
 
                     } catch (Exception e) {
                         connection.rollback();
-                        Debugger.debugSave("Failed to save log entries. Trying again...");
+                        stellarProtect.getProtectDatabase().recordFailedSave();
+                        warnSaveFailure(e);
                     return false;
                     } finally {
                         connection.setAutoCommit(true);
                     }
 
                 } catch (Exception e) {
-                    Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().recordFailedSave();
+                    warnSaveFailure(e);
                     return false;
                 }
 
                 Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                stellarProtect.getProtectDatabase().recordSuccessfulSave();
                 return true;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicLong lastSaveWarning = new java.util.concurrent.atomic.AtomicLong();
+
+    private void warnSaveFailure(Exception exception) {
+        long now = System.currentTimeMillis();
+        long previous = lastSaveWarning.get();
+        if (now - previous >= 60000L && lastSaveWarning.compareAndSet(previous, now)) {
+            stellarProtect.getLogger().warning("Database log save failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage());
+            if (exception instanceof SQLException) {
+                SQLException sql = (SQLException) exception;
+                stellarProtect.getLogger().warning("SQLState=" + sql.getSQLState() + ", errorCode=" + sql.getErrorCode());
+            }
+        }
     }
 
 }

@@ -19,6 +19,25 @@ public class StatsArgument extends StellarArgument {
 
     @Override
     public void onCommand(@NotNull CommandSender sender, String[] arguments) {
+        if (arguments.length > 0 && arguments[0].equalsIgnoreCase("db")) {
+            plugin.getLookupExecutor().execute(() -> {
+                io.github.insideranh.stellarprotect.database.ProtectDatabase db = plugin.getProtectDatabase();
+                boolean healthy = db.isDatabaseConnected();
+                long pending = db.getPendingRecoveryLogs();
+                long lastSave = db.getLastSaveAt();
+                long failures = db.getSaveFailureCount();
+                plugin.getStellarTaskHook(() -> {
+                    sender.sendMessage("§6StellarProtect database status");
+                    sender.sendMessage("§eDatabase: §f" + plugin.getConfig().getString("databases.type", "h2"));
+                    sender.sendMessage("§eConnection: §f" + (healthy ? "connected" : "unavailable"));
+                    sender.sendMessage("§eRecovery queue: §f" + (pending < 0 ? "unknown" : pending));
+                    sender.sendMessage("§eLast successful save: §f" + (lastSave == 0 ? "not observed since startup" : new java.util.Date(lastSave).toString()));
+                    sender.sendMessage("§eSave failures since startup: §f" + failures);
+                }).runTask();
+            });
+            return;
+        }
+
         TimeArg timeArg = ArgumentsParser.parseTime(arguments);
         RadiusArg radiusArg = ArgumentsParser.parseRadiusOrNull(sender instanceof org.bukkit.entity.Player ? (org.bukkit.entity.Player) sender : null, arguments, sender instanceof org.bukkit.entity.Player ? ((org.bukkit.entity.Player) sender).getLocation() : null);
         List<ActionType> actionTypesArg = ArgumentsParser.parseActionTypes(arguments);
@@ -73,7 +92,7 @@ public class StatsArgument extends StellarArgument {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, String[] arguments) {
-        return java.util.Arrays.asList("t:1h", "t:1d", "t:30m", "r:10", "a:block_break");
+        return java.util.Arrays.asList("db", "t:1h", "t:1d", "t:30m", "r:10", "a:block_break");
     }
 
 }

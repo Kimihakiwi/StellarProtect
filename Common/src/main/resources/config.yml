@@ -90,6 +90,8 @@ advanced:
   # Enables tracking of liquids
   liquid-tracking: true
 logs:
+  automatic_transfer:
+    enabled: false
   block_break:
     enabled: true
     # You can use 'all' to log all worlds
@@ -397,3 +399,8 @@ logs:
     # You can use 'none' no disable block types
     disable_types:
       - none
+logging-exclusions:
+  players: []
+  entities: []
+  blocks: []
+  item-template-ids: []

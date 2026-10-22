@@ -118,6 +118,8 @@ public class SQLConnection implements DatabaseConnection {
                     "PRIMARY KEY (log_entry_id, item_id, is_added)" +
                     ")");
 
+                statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + stellarProtect.getConfigManager().getTablesPrefix() + "replay_progress (queue_id VARCHAR(80) PRIMARY KEY, last_id BIGINT NOT NULL)");
+
                 ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM " + logEntriesTable);
                 if (resultSet.next()) {
                     long count = resultSet.getLong("COUNT(*)");

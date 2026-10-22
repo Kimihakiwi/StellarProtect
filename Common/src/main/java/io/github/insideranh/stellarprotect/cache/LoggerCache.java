@@ -127,6 +127,7 @@ public class LoggerCache {
     }
 
     public static void addLog(LogEntry logEntry) {
+        if (plugin.getConfigManager().shouldExcludeLog(logEntry)) return;
         ActionCategory category = getCategoryByActionId(logEntry.getActionType());
         int categoryOrdinal = category.ordinal();
         LocationCache location = logEntry.asLocation();
@@ -159,6 +160,7 @@ public class LoggerCache {
     }
 
     public static void addWorldEditLog(LogEntry logEntry) {
+        if (plugin.getConfigManager().shouldExcludeLog(logEntry)) return;
         ActionCategory category = ActionCategory.WORLD_EDIT_ACTIONS;
         int categoryOrdinal = category.ordinal();
 

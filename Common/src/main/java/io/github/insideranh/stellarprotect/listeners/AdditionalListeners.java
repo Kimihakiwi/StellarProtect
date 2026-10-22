@@ -4,6 +4,15 @@ import io.github.insideranh.stellarprotect.StellarProtect;
 import io.github.insideranh.stellarprotect.cache.BlockSourceCache;
 import io.github.insideranh.stellarprotect.cache.LoggerCache;
 import io.github.insideranh.stellarprotect.database.entries.players.PlayerBlockLogEntry;
+import io.github.insideranh.stellarprotect.database.entries.players.PlayerTransactionEntry;
+import io.github.insideranh.stellarprotect.items.ItemReference;
+import io.github.insideranh.stellarprotect.utils.PlayerUtils;
+import org.bukkit.Location;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.inventory.Inventory;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import io.github.insideranh.stellarprotect.database.entries.world.BrewingLogEntry;
 import io.github.insideranh.stellarprotect.enums.ActionType;
 import org.bukkit.Material;
@@ -23,10 +32,64 @@ import java.util.List;
 public class AdditionalListeners implements Listener {
 
     private final StellarProtect plugin = StellarProtect.getInstance();
+    private final Map<String, Boolean> pendingTransfers = new ConcurrentHashMap<>();
 
     private static final List<String> SCULK_BLOCKS = Arrays.asList(
         "SCULK", "SCULK_VEIN", "SCULK_CATALYST", "SCULK_SENSOR", "SCULK_SHRIEKER"
     );
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onInventoryMove(InventoryMoveItemEvent event) {
+        if (!plugin.getConfig().getBoolean("logs.automatic_transfer.enabled", false)) return;
+        if (!ActionType.INVENTORY_TRANSACTION.isEnabled()) return;
+        Inventory source = event.getSource();
+        Inventory destination = event.getDestination();
+        Location from = source.getLocation();
+        Location to = destination.getLocation();
+        if (from == null || to == null || from.getWorld() == null || !from.getWorld().equals(to.getWorld()) || from.equals(to)) return;
+        if ((from.getBlockX() >> 4) != (to.getBlockX() >> 4) || (from.getBlockZ() >> 4) != (to.getBlockZ() >> 4)) return;
+        ItemStack transferred = event.getItem();
+        if (transferred == null || transferred.getType() == Material.AIR) return;
+        ItemStack item = transferred.clone();
+        int beforeDestination = countSimilar(destination, item);
+        String key = from.getWorld().getUID() + ":" + from.getBlockX() + ":" + from.getBlockY() + ":" + from.getBlockZ()
+            + ":" + to.getBlockX() + ":" + to.getBlockY() + ":" + to.getBlockZ() + ":" + item.hashCode();
+        if (pendingTransfers.putIfAbsent(key, Boolean.TRUE) != null) return;
+        String actor = getTransferActor(event.getInitiator());
+        plugin.getStellarTaskHook(() -> {
+            try {
+                int quantity = countSimilar(destination, item) - beforeDestination;
+                if (quantity <= 0 || ActionType.INVENTORY_TRANSACTION.shouldSkipLog(from.getWorld().getName(), item.getType().name())) return;
+                ItemReference reference = plugin.getItemsManager().getItemReference(item, quantity);
+                long playerId = PlayerUtils.getPlayerOrEntityId(actor);
+                Map<Long, Integer> removedItems = new HashMap<>();
+                removedItems.put(reference.getTemplateId(), quantity);
+                LoggerCache.addLog(new PlayerTransactionEntry(playerId, new HashMap<>(), removedItems, from, ActionType.INVENTORY_TRANSACTION));
+                Map<Long, Integer> addedItems = new HashMap<>();
+                addedItems.put(reference.getTemplateId(), quantity);
+                LoggerCache.addLog(new PlayerTransactionEntry(playerId, addedItems, new HashMap<>(), to, ActionType.INVENTORY_TRANSACTION));
+            } finally {
+                pendingTransfers.remove(key);
+            }
+        }).runTask(from, 1L);
+    }
+
+    private static int countSimilar(Inventory inventory, ItemStack item) {
+        int count = 0;
+        for (ItemStack stored : inventory.getStorageContents()) {
+            if (stored != null && stored.isSimilar(item)) count += stored.getAmount();
+        }
+        return count;
+    }
+
+    private static String getTransferActor(Inventory initiator) {
+        Location location = initiator.getLocation();
+        if (location == null || location.getWorld() == null) return "=hopper";
+        Material material = location.getBlock().getType();
+        if (material == Material.DROPPER) return "=dropper";
+        if ("CRAFTER".equals(material.name())) return "=crafter";
+        return "=hopper";
+    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockDispense(BlockDispenseEvent event) {

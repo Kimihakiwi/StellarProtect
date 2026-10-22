@@ -15,6 +15,8 @@ import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.entity.Player;
 
 import java.text.SimpleDateFormat;
@@ -151,9 +153,23 @@ public class RestoreManager {
             EntityType entityType = EntityType.valueOf(playerKillLogEntry.getEntityType());
             Location location = playerKillLogEntry.asBukkitLocation();
 
-            Entity entity = location.getWorld().spawnEntity(location, entityType);
-            io.github.insideranh.stellarprotect.entities.DataEntity dataEntity = plugin.getDataEntity(playerKillLogEntry.getEntityData().getEntityData());
-            dataEntity.applyToEntity(entity);
+            if (location.getWorld() == null) return;
+            plugin.getStellarTaskHook(() -> {
+                NamespacedKey restoreKey = new NamespacedKey(plugin, "restored_entity_log");
+                String marker = String.valueOf(playerKillLogEntry.getId());
+                for (Entity nearby : location.getWorld().getNearbyEntities(location, 2, 2, 2)) {
+                    if (marker.equals(nearby.getPersistentDataContainer().get(restoreKey, PersistentDataType.STRING))) return;
+                }
+                Entity entity = location.getWorld().spawnEntity(location, entityType);
+                try {
+                    io.github.insideranh.stellarprotect.entities.DataEntity dataEntity = plugin.getDataEntity(playerKillLogEntry.getEntityData().getEntityData());
+                    dataEntity.applyToEntity(entity);
+                } catch (Exception exception) {
+                    plugin.getLogger().warning("Failed to restore entity state: " + exception.getMessage());
+                } finally {
+                    entity.getPersistentDataContainer().set(restoreKey, PersistentDataType.STRING, marker);
+                }
+            }).runTask(location);
         }
     }
 

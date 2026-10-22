@@ -139,6 +139,40 @@ public class ProtectDatabase {
 
     private final AtomicBoolean queueProcessing = new AtomicBoolean();
     private final AtomicBoolean queueDeletionFailed = new AtomicBoolean();
+    private final java.util.concurrent.atomic.AtomicLong lastSaveAt = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong saveFailureCount = new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong lastSaveErrorAt = new java.util.concurrent.atomic.AtomicLong();
+
+    public void recordSuccessfulSave() {
+        lastSaveAt.set(System.currentTimeMillis());
+    }
+
+    public void recordFailedSave() {
+        saveFailureCount.incrementAndGet();
+        lastSaveErrorAt.set(System.currentTimeMillis());
+    }
+
+    public long getLastSaveAt() { return lastSaveAt.get(); }
+    public long getSaveFailureCount() { return saveFailureCount.get(); }
+    public long getLastSaveErrorAt() { return lastSaveErrorAt.get(); }
+
+    public long getPendingRecoveryLogs() { return temporalConnection.countPendingLogs(); }
+
+    public boolean isDatabaseConnected() {
+        try {
+            if (databaseConnection instanceof MySQLConnection) {
+                try (java.sql.Connection c = ((MySQLConnection) databaseConnection).getDataSource().getConnection()) {
+                    return c.isValid(2);
+                }
+            }
+            if (databaseConnection instanceof SQLConnection) {
+                return ((SQLConnection) databaseConnection).getConnection().isValid(2);
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return false;
+    }
 
     public void processQueueLogs() {
         if (queueDeletionFailed.get() || !queueProcessing.compareAndSet(false, true)) return;
@@ -150,6 +184,7 @@ public class ProtectDatabase {
                     if (queuedLogs.isEmpty()) return;
 
                     List<LogEntry> entries = new java.util.ArrayList<>(queuedLogs.size());
+                    List<Long> queueIds = new java.util.ArrayList<>(queuedLogs.size());
                     for (QueuedLog queued : queuedLogs) {
                         LogEntry entry;
                         if (queued.getActionType() == ActionType.INVENTORY_TRANSACTION.getId() && queued.getExtraJson() != null) {
@@ -176,9 +211,10 @@ public class ProtectDatabase {
                         entry.setEntityType(queued.getEntityType());
                         if (queued.getExtraJson() != null) entry.setForcedJson(queued.getExtraJson());
                         entries.add(entry);
+                        queueIds.add(queued.getId());
                     }
 
-                    if (!databaseConnection.getLoggerRepository().saveQueuedBatch(entries)) {
+                    if (!databaseConnection.getLoggerRepository().saveRecoveryBatch(entries, queueIds, temporalConnection.getQueueId())) {
                         stellarProtect.getLogger().warning("Recovery queue batch was not committed; retained for retry");
                         return;
                     }

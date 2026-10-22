@@ -14,6 +14,8 @@ import io.github.insideranh.stellarprotect.utils.SerializerUtils;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -147,9 +149,14 @@ public class UndoManager {
                     " §7type: §f" + playerKillLogEntry.getEntityType());
             }
 
-            location.getWorld().getNearbyEntities(location, 1, 1, 1).stream()
-                .filter(entity -> entity.getType().name().equals(playerKillLogEntry.getEntityType()))
-                .forEach(Entity::remove);
+            if (location.getWorld() == null) return;
+            plugin.getStellarTaskHook(() -> {
+                NamespacedKey restoreKey = new NamespacedKey(plugin, "restored_entity_log");
+                String marker = String.valueOf(playerKillLogEntry.getId());
+                location.getWorld().getNearbyEntities(location, 2, 2, 2).stream()
+                    .filter(entity -> marker.equals(entity.getPersistentDataContainer().get(restoreKey, PersistentDataType.STRING)))
+                    .forEach(Entity::remove);
+            }).runTask(location);
         }
     }
 

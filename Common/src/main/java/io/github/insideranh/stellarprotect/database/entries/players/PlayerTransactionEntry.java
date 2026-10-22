@@ -65,6 +65,16 @@ public class PlayerTransactionEntry extends LogEntry {
         setAmount(Math.abs(delta));
     }
 
+    public boolean excludeItems(java.util.Set<Long> excludedIds) {
+        added.keySet().removeIf(excludedIds::contains);
+        removed.keySet().removeIf(excludedIds::contains);
+        int total = 0;
+        for (int value : added.values()) total += value;
+        for (int value : removed.values()) total += value;
+        setAmount(total);
+        return !added.isEmpty() || !removed.isEmpty();
+    }
+
     @Override
     public String getDataString() {
         return "added: " + added.toString() + ", removed: " + removed.toString();

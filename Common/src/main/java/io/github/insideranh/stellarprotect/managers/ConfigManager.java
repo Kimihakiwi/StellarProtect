@@ -12,6 +12,10 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Collections;
+import java.util.Locale;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -55,9 +59,54 @@ public class ConfigManager {
     private String tablesEntityIds;
 
     private String itemsLang;
+    private volatile Set<String> excludedPlayers = Collections.emptySet();
+    private volatile Set<String> excludedEntities = Collections.emptySet();
+    private volatile Set<String> excludedBlocks = Collections.emptySet();
+    private volatile Set<Long> excludedItemTemplateIds = Collections.emptySet();
+
+    public boolean shouldExcludeLog(io.github.insideranh.stellarprotect.database.entries.LogEntry entry) {
+        if (!excludedPlayers.isEmpty()) {
+            String name = io.github.insideranh.stellarprotect.utils.PlayerUtils.getNameOfEntity(entry.getPlayerId());
+            if (name != null && excludedPlayers.contains(name.toLowerCase(Locale.ROOT))) return true;
+        }
+        if (!excludedEntities.isEmpty() && entry.getEntityType() != null && excludedEntities.contains(entry.getEntityType().toLowerCase(Locale.ROOT))) return true;
+        if (!excludedItemTemplateIds.isEmpty()) {
+            if (entry.getItemId() != null && excludedItemTemplateIds.contains(entry.getItemId())) return true;
+            if (entry instanceof io.github.insideranh.stellarprotect.database.entries.players.PlayerTransactionEntry) {
+                io.github.insideranh.stellarprotect.database.entries.players.PlayerTransactionEntry transaction =
+                    (io.github.insideranh.stellarprotect.database.entries.players.PlayerTransactionEntry) entry;
+                if (!transaction.excludeItems(excludedItemTemplateIds)) return true;
+            }
+        }
+        if (!excludedBlocks.isEmpty() && entry.getBlockId() != null) {
+            String blockData = entry.getDataString();
+            if (blockData != null) {
+                String material = blockData.toLowerCase(Locale.ROOT).split("\\[", 2)[0];
+                if (excludedBlocks.contains(material) || excludedBlocks.contains(material.replace("minecraft:", ""))) return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<String> normalizeExclusions(String path) {
+        Set<String> result = new HashSet<>();
+        for (String entry : plugin.getConfig().getStringList(path)) {
+            if (entry != null && !entry.trim().isEmpty()) result.add(entry.trim().toLowerCase(Locale.ROOT));
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
 
     public void load() {
         this.checkUpdates = plugin.getConfig().getBoolean("check-updates");
+        excludedPlayers = normalizeExclusions("logging-exclusions.players");
+        excludedEntities = normalizeExclusions("logging-exclusions.entities");
+        excludedBlocks = normalizeExclusions("logging-exclusions.blocks");
+        Set<Long> itemIds = new HashSet<>();
+        for (String id : plugin.getConfig().getStringList("logging-exclusions.item-template-ids")) {
+            try { itemIds.add(Long.parseLong(id.trim())); } catch (NumberFormatException ignored) {}
+        }
+        excludedItemTemplateIds = Collections.unmodifiableSet(itemIds);
 
         this.debugLog = plugin.getConfig().getBoolean("debugs.log");
         this.debugSave = plugin.getConfig().getBoolean("debugs.save");

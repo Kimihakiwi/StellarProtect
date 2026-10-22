@@ -221,20 +221,23 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
 
                                 saveInventoryTxns(connection, txnEntries);
                                 connection.commit();
+                                stellarProtect.getProtectDatabase().recordSuccessfulSave();
 
                             } catch (Exception e) {
                                 connection.rollback();
-                                Debugger.debugSave("Failed to save log entries. Trying again...");
+                                stellarProtect.getProtectDatabase().recordFailedSave();
+                                warnSaveFailure(e);
                     stellarProtect.getProtectDatabase().saveQueue(logEntries);
                             } finally {
                                 connection.setAutoCommit(true);
                             }
                         } catch (Exception e) {
-                            Debugger.debugSave("Failed to save log entries. Trying again...");
+                            stellarProtect.getProtectDatabase().recordFailedSave();
+                            warnSaveFailure(e);
                     stellarProtect.getProtectDatabase().saveQueue(logEntries);
                         }
 
-                        Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                        Debugger.debugSave("Finished processing " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
                     });
         } catch (java.util.concurrent.RejectedExecutionException rejected) {
             stellarProtect.getProtectDatabase().saveQueue(logEntries);
@@ -948,15 +951,44 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
 
     @Override
     public boolean saveQueuedBatch(List<LogEntry> logEntries) {
+        return saveBatch(logEntries, null, null);
+    }
+
+    @Override
+    public boolean saveRecoveryBatch(List<LogEntry> logEntries, List<Long> queueIds, String queueId) {
+        if (queueId == null || queueIds == null || queueIds.size() != logEntries.size()) return false;
+        return saveBatch(logEntries, queueIds, queueId);
+    }
+
+    private boolean saveBatch(List<LogEntry> logEntries, List<Long> queueIds, String queueId) {
         long start = System.currentTimeMillis();
         Debugger.debugSave("Saving log entries...");
     try (Connection connection = getConnection()) {
                     connection.setAutoCommit(false);
+                    List<LogEntry> pending = logEntries;
+                    if (queueIds != null) {
+                        long lastCommitted = 0L;
+                        try (PreparedStatement checkpoint = connection.prepareStatement("SELECT last_id FROM " + stellarProtect.getConfigManager().getTablesPrefix() + "replay_progress WHERE queue_id = ?" + " FOR UPDATE")) {
+                            checkpoint.setString(1, queueId);
+                            try (ResultSet checkpointResult = checkpoint.executeQuery()) {
+                                if (checkpointResult.next()) lastCommitted = checkpointResult.getLong(1);
+                            }
+                        }
+                        pending = new java.util.ArrayList<>(logEntries.size());
+                        for (int q = 0; q < queueIds.size(); q++) {
+                            if (queueIds.get(q) > lastCommitted) pending.add(logEntries.get(q));
+                        }
+                        if (pending.isEmpty()) {
+                            connection.commit();
+                            connection.setAutoCommit(true);
+                            return true;
+                        }
+                    }
 
                     try (PreparedStatement playerStmt = connection.prepareStatement(
                         "INSERT INTO " + stellarProtect.getConfigManager().getTablesLogEntries() + " (player_id, world_id, x, y, z, action_type, restored, extra_json, created_at, block_id, old_block_id, item_id, amount, entity_type, chunk_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     , java.sql.Statement.RETURN_GENERATED_KEYS)) {
-                        for (LogEntry playerLog : logEntries) {
+                        for (LogEntry playerLog : pending) {
                             String extraJson = playerLog.toSaveJson();
 
                             playerStmt.setLong(1, playerLog.getPlayerId());
@@ -984,34 +1016,58 @@ public class LoggerRepositoryMySQL implements LoggerRepository {
                         int idx = 0;
                         while (generatedKeys.next()) {
                             long logId = generatedKeys.getLong(1);
-                            if (idx < logEntries.size()) {
-                                LogEntry le = logEntries.get(idx);
+                            if (idx < pending.size()) {
+                                LogEntry le = pending.get(idx);
                                 if (le instanceof PlayerTransactionEntry) {
                                     txnEntries.put((PlayerTransactionEntry) le, logId);
                                 }
                             }
                             idx++;
                         }
-                        long expectedTransactions = logEntries.stream().filter(entry -> entry instanceof PlayerTransactionEntry).count();
+                        long expectedTransactions = pending.stream().filter(entry -> entry instanceof PlayerTransactionEntry).count();
                         if (txnEntries.size() != expectedTransactions) throw new SQLException("Missing generated transaction IDs");
 
                         saveInventoryTxns(connection, txnEntries);
+                        if (queueIds != null) {
+                            try (PreparedStatement checkpointUpdate = connection.prepareStatement("INSERT INTO " + stellarProtect.getConfigManager().getTablesPrefix() + "replay_progress (queue_id, last_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE last_id = GREATEST(last_id, VALUES(last_id))")) {
+                                checkpointUpdate.setString(1, queueId);
+                                checkpointUpdate.setLong(2, queueIds.get(queueIds.size() - 1));
+                                checkpointUpdate.executeUpdate();
+                            }
+                        }
                         connection.commit();
 
                     } catch (Exception e) {
                         connection.rollback();
-                        Debugger.debugSave("Failed to save log entries. Trying again...");
+                        stellarProtect.getProtectDatabase().recordFailedSave();
+                        warnSaveFailure(e);
                     return false;
                     } finally {
                         connection.setAutoCommit(true);
                     }
                 } catch (Exception e) {
-                    Debugger.debugSave("Failed to save log entries. Trying again...");
+                    stellarProtect.getProtectDatabase().recordFailedSave();
+                    warnSaveFailure(e);
                     return false;
                 }
 
                 Debugger.debugSave("Saved " + logEntries.size() + " log entries in " + (System.currentTimeMillis() - start) + "ms");
+                stellarProtect.getProtectDatabase().recordSuccessfulSave();
                 return true;
+    }
+
+    private static final java.util.concurrent.atomic.AtomicLong lastSaveWarning = new java.util.concurrent.atomic.AtomicLong();
+
+    private void warnSaveFailure(Exception exception) {
+        long now = System.currentTimeMillis();
+        long previous = lastSaveWarning.get();
+        if (now - previous >= 60000L && lastSaveWarning.compareAndSet(previous, now)) {
+            stellarProtect.getLogger().warning("Database log save failed: " + exception.getClass().getSimpleName() + ": " + exception.getMessage());
+            if (exception instanceof SQLException) {
+                SQLException sql = (SQLException) exception;
+                stellarProtect.getLogger().warning("SQLState=" + sql.getSQLState() + ", errorCode=" + sql.getErrorCode());
+            }
+        }
     }
 
 }

@@ -31,6 +31,10 @@ public interface LoggerRepository {
         return false;
     }
 
+    default boolean saveRecoveryBatch(List<LogEntry> logEntries, List<Long> queueIds, String queueId) {
+        return false;
+    }
+
     static void setNullableInt(PreparedStatement statement, int index, Integer value) throws SQLException {
         if (value == null) statement.setNull(index, Types.INTEGER);
         else statement.setInt(index, value);

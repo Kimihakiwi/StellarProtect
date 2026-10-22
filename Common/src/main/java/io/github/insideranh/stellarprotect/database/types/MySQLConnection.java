@@ -162,6 +162,7 @@ public class MySQLConnection implements DatabaseConnection {
                         "INDEX idx_txn_item (item_id)" +
                         ")");
 
+                    statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + prefix + "replay_progress (queue_id VARCHAR(80) PRIMARY KEY, last_id BIGINT NOT NULL)");
                     statement.execute("SET SESSION foreign_key_checks = 0");
                     statement.execute("SET SESSION unique_checks = 0");
                 }
